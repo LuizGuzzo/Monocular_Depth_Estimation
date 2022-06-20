@@ -14,7 +14,8 @@ class UpSample(nn.Sequential):
 
     def forward(self, x, concat_with):
         up_x = F.interpolate(x, size=[concat_with.size(2), concat_with.size(3)], mode='bilinear', align_corners=True)
-        return self.leakyreluB( self.convB( self.convA( torch.cat([up_x, concat_with], dim=1)  ) )  )
+        return self.leakyreluB( self.convB( self.leakyreluA( self.convA( torch.cat([up_x, concat_with], dim=1) ) ) ))
+        #return self.leakyreluB( self.convB( self.convA( torch.cat([up_x, concat_with], dim=1)  ) )  )
 
 class Decoder(nn.Module):
     def __init__(self, num_features=1664, decoder_width = 1.0):
@@ -43,7 +44,7 @@ class Decoder(nn.Module):
 class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()       
-        self.original_model = models.densenet169( pretrained=False )
+        self.original_model = models.densenet169( pretrained=True ) # True to transfer learning
 
     def forward(self, x):
         features = [x]

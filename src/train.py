@@ -56,8 +56,11 @@ def main():
             optimizer.zero_grad()
 
             # Prepare sample and target
+            # remove torch.autograd.Variable and test
             image = torch.autograd.Variable(sample_batched['image'].cuda())
             depth = torch.autograd.Variable(sample_batched['depth'].cuda(non_blocking=True))
+            # image = torch.autograd.Variable(sample_batched['image'])
+            # depth = torch.autograd.Variable(sample_batched['depth'])
 
             # Normalize depth
             depth_n = DepthNorm( depth )
@@ -107,6 +110,8 @@ def LogProgress(model, writer, test_loader, epoch):
     sample_batched = next(iter(sequential))
     image = torch.autograd.Variable(sample_batched['image'].cuda())
     depth = torch.autograd.Variable(sample_batched['depth'].cuda(non_blocking=True))
+    # image = torch.autograd.Variable(sample_batched['image'])
+    # depth = torch.autograd.Variable(sample_batched['depth'])
     if epoch == 0: writer.add_image('Train.1.Image', vutils.make_grid(image.data, nrow=6, normalize=True), epoch)
     if epoch == 0: writer.add_image('Train.2.Depth', colorize(vutils.make_grid(depth.data, nrow=6, normalize=False)), epoch)
     output = DepthNorm( model(image) )
