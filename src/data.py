@@ -46,7 +46,7 @@ class RandomChannelSwap(object):
         return {'image': image, 'depth': depth}
 
 def loadZipToMem(zip_file):
-    # Load zip file into memory
+    # carrega o arquivo zip para a memoria
     print('Loading dataset zip file...', end='')
     from zipfile import ZipFile
     input_zip = ZipFile(zip_file)
@@ -61,12 +61,20 @@ def loadZipToMem(zip_file):
     print('Loaded ({0}).'.format(len(nyu2_train)))
     return data, nyu2_train
 
+
 class depthDatasetMemory(Dataset):
+    # All datasets are subclasses of torch.utils.data.Dataset i.e, they have __getitem__ 
+    # and __len__ methods implemented. Hence, they can all be passed to a torch.utils.data.DataLoader
+    # which can load multiple samples in parallel using torch.multiprocessing workers.
+    # https://pytorch.org/vision/stable/datasets.html?highlight=torch%20utils%20dataset
+    
     def __init__(self, data, nyu2_train, transform=None):
+        # carrega o data set na classe
         self.data, self.nyu_dataset = data, nyu2_train
         self.transform = transform
 
     def __getitem__(self, idx):
+        # retorna um sample transformado
         sample = self.nyu_dataset[idx]
         image = Image.open( BytesIO(self.data[sample[0]]) )
         depth = Image.open( BytesIO(self.data[sample[1]]) )
@@ -78,6 +86,8 @@ class depthDatasetMemory(Dataset):
         return len(self.nyu_dataset)
 
 class ToTensor(object):
+    # Convert a PIL Image or numpy.ndarray to tensor.
+    # https://pytorch.org/vision/stable/generated/torchvision.transforms.ToTensor.html?highlight=totensor#torchvision.transforms.ToTensor
     def __init__(self,is_test=False):
         self.is_test = is_test
 
@@ -136,7 +146,8 @@ def getNoTransform(is_test=False):
         ToTensor(is_test=is_test)
     ])
 
-def getDefaultTrainTransform():
+def getDefaultTrainTransform(): 
+    #concatenação de transformações
     return transforms.Compose([
         RandomHorizontalFlip(),
         RandomChannelSwap(0.5),
@@ -146,7 +157,9 @@ def getDefaultTrainTransform():
 def getTrainingTestingData(batch_size):
     data, nyu2_train = loadZipToMem('CSVdata.zip')
 
+    # cria uma classe que ira ler da as imagens e realizar a transformação necessaria.
     transformed_training = depthDatasetMemory(data, nyu2_train, transform=getDefaultTrainTransform())
     transformed_testing = depthDatasetMemory(data, nyu2_train, transform=getNoTransform())
 
+    # https://pytorch.org/vision/stable/datasets.html?highlight=torch%20utils%20dataset 
     return DataLoader(transformed_training, batch_size, shuffle=True), DataLoader(transformed_testing, batch_size, shuffle=False)

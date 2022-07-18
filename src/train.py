@@ -23,7 +23,6 @@ def main():
 
     # Create model
     model = PTModel().cuda()
-    # model = PTModel().cpu()
 
     print('Model created.')
 
@@ -39,11 +38,12 @@ def main():
     writer = SummaryWriter(comment='{}-lr{}-e{}-bs{}'.format(prefix, args.lr, args.epochs, args.bs), flush_secs=30)
 
     # Loss
+    # Creates a criterion that measures the mean absolute error (MAE) between each element in the input x and target y.
     l1_criterion = nn.L1Loss()
 
     # Start training...
     for epoch in range(args.epochs):
-        batch_time = AverageMeter()
+        batch_time = AverageMeter() # medidor de media
         losses = AverageMeter()
         N = len(train_loader)
 
@@ -58,8 +58,6 @@ def main():
             # Prepare sample and target
             image = sample_batched['image'].cuda()
             depth = sample_batched['depth'].cuda(non_blocking=True)
-            # image = torch.autograd.Variable(sample_batched['image'].cuda())
-            # depth = torch.autograd.Variable(sample_batched['depth'].cuda(non_blocking=True))
 
             # Normalize depth
             depth_n = DepthNorm( depth )
