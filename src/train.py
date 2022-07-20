@@ -7,20 +7,29 @@ import torch.nn as nn
 import torch.nn.utils as utils
 import torchvision.utils as vutils    
 from tensorboardX import SummaryWriter
+import os
 
 from model import PTModel
 from loss import ssim
 from data import getTrainingTestingData
 from utils import AverageMeter, DepthNorm, colorize
 
+
+# TODO:
+#  > Load the model if needed (checkpoints) https://pytorch.org/tutorials/beginner/saving_loading_models.html
+#  > salvar o modelo para ser testado
+#  > fazer um programa que testa o modelo
+
+# gradiente é necessariamente oque? a curva? a tecnica? quanto menor gradiente significa menor erro? n entendi ainda
+
 def main():
     # Arguments
     parser = argparse.ArgumentParser(description='High Quality Monocular Depth Estimation via Transfer Learning')
-    parser.add_argument('--epochs', default=20, type=int, help='number of total epochs to run')
+    parser.add_argument('--epochs', default=10, type=int, help='number of total epochs to run')
     parser.add_argument('--lr', '--learning-rate', default=0.0001, type=float, help='initial learning rate')
-    parser.add_argument('--bs', default=4, type=int, help='batch size')
+    parser.add_argument('--bs', default=7, type=int, help='batch size')
     args = parser.parse_args()
-
+    
     # Create model
     model = PTModel().cuda()
 
@@ -43,7 +52,7 @@ def main():
 
     # Start training...
     for epoch in range(args.epochs):
-        batch_time = AverageMeter() # medidor de media
+        batch_time = AverageMeter() # medidores
         losses = AverageMeter()
         N = len(train_loader)
 
@@ -53,7 +62,7 @@ def main():
         end = time.time()
 
         for i, sample_batched in enumerate(train_loader):
-            optimizer.zero_grad()
+            optimizer.zero_grad() 
 
             # Prepare sample and target
             image = sample_batched['image'].cuda()
@@ -73,8 +82,9 @@ def main():
 
             # Update step
             losses.update(loss.data.item(), image.size(0))
-            loss.backward()
-            optimizer.step()
+            loss.backward() # gradiants computed
+            optimizer.step() # method, that updates the parameters.
+            # porque o loss aumenta quando termina o epoch e depois volta ao normal?
 
             # Measure elapsed time
             batch_time.update(time.time() - end)
@@ -94,22 +104,38 @@ def main():
                 # Log to tensorboard
                 writer.add_scalar('Train/Loss', losses.val, niter)
 
-            if i % 300 == 0:
+            if i % 300 == 0: # a cada 300 imagens processadas
                 LogProgress(model, writer, test_loader, niter)
+
 
         # Record epoch's intermediate results
         LogProgress(model, writer, test_loader, niter)
         writer.add_scalar('Train/Loss.avg', losses.avg, epoch)
 
+        # Record checkpoint
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': loss
+            }, f'checkpoints/epoch-{epoch}_loss-{loss}.pth') 
+
+        # exporting
+        # model_scripted = torch.jit.script(model) # Export to TorchScript
+        # model_scripted.save(f'exports/epoch-{epoch}_loss-{loss}_exported.pt') # Save
+        
+
 def LogProgress(model, writer, test_loader, epoch):
     model.eval()
     sequential = test_loader
     sample_batched = next(iter(sequential))
-    image = torch.autograd.Variable(sample_batched['image'].cuda())
-    depth = torch.autograd.Variable(sample_batched['depth'].cuda(non_blocking=True))
+    image = sample_batched['image'].cuda()
+    depth = sample_batched['depth'].cuda(non_blocking=True)
+    # registrando no log, a Imagem original + a GT
     if epoch == 0: writer.add_image('Train.1.Image', vutils.make_grid(image.data, nrow=6, normalize=True), epoch)
     if epoch == 0: writer.add_image('Train.2.Depth', colorize(vutils.make_grid(depth.data, nrow=6, normalize=False)), epoch)
     output = DepthNorm( model(image) )
+    # registrando no log o mapa estimado e a diferença com o GT
     writer.add_image('Train.3.Ours', colorize(vutils.make_grid(output.data, nrow=6, normalize=False)), epoch)
     writer.add_image('Train.3.Diff', colorize(vutils.make_grid(torch.abs(output-depth).data, nrow=6, normalize=False)), epoch)
     del image

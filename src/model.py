@@ -3,25 +3,10 @@ import torch.nn as nn
 from torchvision import models
 import torch.nn.functional as F
 
-
-class UpSample(nn.Sequential):
-    def __init__(self, skip_input, output_features):
-        super(UpSample, self).__init__()        
-        self.convA = nn.Conv2d(skip_input, output_features, kernel_size=3, stride=1, padding=1)
-        self.leakyreluA = nn.LeakyReLU(0.2)
-        self.convB = nn.Conv2d(output_features, output_features, kernel_size=3, stride=1, padding=1)
-        self.leakyreluB = nn.LeakyReLU(0.2)
-
-    def forward(self, x, concat_with):
-        up_x = F.interpolate(x, size=[concat_with.size(2), concat_with.size(3)], mode='bilinear', align_corners=True)
-        x = torch.cat([up_x, concat_with], dim=1)
-        x = self.convA(x)
-        x = self.leakyreluA(x)
-        x = self.convB(x)
-        x = self.leakyreluB(x)
-        return x
-
 # class Decoder(nn.Module):
+    # The decoder is composed of basic blocks of convolutional 
+    # layers applied on the concatenation of the 2× bilinear upsampling 
+    # of the previous block with the block in the encoder with the same spatial size after upsampling.
 #     def __init__(self, num_features=1664, decoder_width = 1.0):
 #         super(Decoder, self).__init__()
 #         features = int(num_features * decoder_width)
@@ -44,12 +29,33 @@ class UpSample(nn.Sequential):
     #     x_d3 = self.up3(x_d2, x_block1)
     #     x_d4 = self.up4(x_d3, x_block0)
     #     return self.conv3(x_d4)
+
+class UpSample(nn.Sequential):
+    
+    def __init__(self, skip_input, output_features):
+        super(UpSample, self).__init__()
+        self.convA = nn.Conv2d(skip_input, output_features, kernel_size=3, stride=1, padding=1)
+        self.leakyreluA = nn.LeakyReLU(0.2)
+        self.convB = nn.Conv2d(output_features, output_features, kernel_size=3, stride=1, padding=1)
+        self.leakyreluB = nn.LeakyReLU(0.2)
+
+    def forward(self, x, concat_with):
+        up_x = F.interpolate(x, size=[concat_with.size(2), concat_with.size(3)], mode='bilinear', align_corners=True)
+        x = torch.cat([up_x, concat_with], dim=1)
+        x = self.convA(x)
+        x = self.leakyreluA(x)
+        x = self.convB(x)
+        x = self.leakyreluB(x)
+        return x
+
+
 class Decoder(nn.Module):
     # https://github.com/alinstein/Depth_estimation/blob/master/Mobile_model.py
     def __init__(self, num_features=1280, decoder_width = .6):
         super(Decoder, self).__init__()
         features = int(num_features * decoder_width)
 
+        # poderia por um sequential aqui
         self.conv2 = nn.Conv2d(num_features, features, kernel_size=1, stride=1, padding=1)
         
         self.up0 = UpSample(skip_input=features//1 + 320, output_features=features//2)

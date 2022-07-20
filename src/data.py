@@ -53,6 +53,7 @@ def loadZipToMem(zip_file):
     data = {name: input_zip.read(name) for name in input_zip.namelist()}
     nyu2_train = list((row.split(',') for row in (data['data/nyu2_train.csv']).decode("utf-8").split('\n') if len(row) > 0))
 
+    #TODO: verificar como esta sendo a separação de treino, teste (e avaliação se puder)
     from sklearn.utils import shuffle
     nyu2_train = shuffle(nyu2_train, random_state=0)
 
