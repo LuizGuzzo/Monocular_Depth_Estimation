@@ -21,7 +21,10 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
+#TODO: remover comentarios após identificar como printar a imagem
 def colorize(value, vmin=10, vmax=1000, cmap='plasma'):
+    # print("v-.-.-.-.-v")
+    # print("Colorize_value_shape:",value.shape)
     value = value.cpu().numpy()[0,:,:]
 
     # normalize
@@ -35,9 +38,15 @@ def colorize(value, vmin=10, vmax=1000, cmap='plasma'):
     # squeeze last dim if it exists
     #value = value.squeeze(axis=0)
 
+    # print("Colorize_normalizado_value_shape:",value.shape)
     cmapper = matplotlib.cm.get_cmap(cmap)
     value = cmapper(value,bytes=True) # (nxmx4)
+    # print("Colorize_cmapper_value_shape:",value.shape)
 
     img = value[:,:,:3]
+    # print("Colorize_image_shape:",value.shape)
+    img = img.transpose((2,0,1))
+    # print("Colorize_transposto_value_shape:",value.shape)
+    # print("^-.-.-.-.-^")
 
-    return img.transpose((2,0,1))
+    return img

@@ -46,21 +46,24 @@ class RandomChannelSwap(object):
         return {'image': image, 'depth': depth}
 
 def loadZipToMem(zip_file):
-    # carrega o arquivo zip para a memoria
+    # carrega o arquivo zip para a memoria PRO TREINAMENTO
     print('Loading dataset zip file...', end='')
     from zipfile import ZipFile
     input_zip = ZipFile(zip_file)
     data = {name: input_zip.read(name) for name in input_zip.namelist()}
     nyu2_train = list((row.split(',') for row in (data['data/nyu2_train.csv']).decode("utf-8").split('\n') if len(row) > 0))
+    nyu2_test = list((row.split(',') for row in (data['data/nyu2_test.csv']).decode("utf-8").split('\n') if len(row) > 0))
 
-    #TODO: verificar como esta sendo a separação de treino, teste (e avaliação se puder)
     from sklearn.utils import shuffle
     nyu2_train = shuffle(nyu2_train, random_state=0)
+    nyu2_test = shuffle(nyu2_test, random_state=0)
 
     #if True: nyu2_train = nyu2_train[:40]
 
-    print('Loaded ({0}).'.format(len(nyu2_train)))
-    return data, nyu2_train
+    # data é o dicionario {Nome: imagem}
+    # nyu2_train é a lista de nomes para treinamento
+    print('Loaded ({0}) to train and ({1}) to test.'.format(len(nyu2_train),len(nyu2_test)))
+    return data, nyu2_train, nyu2_test
 
 
 class depthDatasetMemory(Dataset):
@@ -156,11 +159,11 @@ def getDefaultTrainTransform():
     ])
 
 def getTrainingTestingData(batch_size):
-    data, nyu2_train = loadZipToMem('CSVdata.zip')
+    data, nyu2_train, nyu2_test = loadZipToMem('CSVdata.zip')
 
     # cria uma classe que ira ler da as imagens e realizar a transformação necessaria.
     transformed_training = depthDatasetMemory(data, nyu2_train, transform=getDefaultTrainTransform())
-    transformed_testing = depthDatasetMemory(data, nyu2_train, transform=getNoTransform())
+    transformed_testing = depthDatasetMemory(data, nyu2_test, transform=getNoTransform())
 
     # https://pytorch.org/vision/stable/datasets.html?highlight=torch%20utils%20dataset 
     return DataLoader(transformed_training, batch_size, shuffle=True), DataLoader(transformed_testing, batch_size, shuffle=False)
