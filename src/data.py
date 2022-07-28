@@ -55,14 +55,18 @@ def loadZipToMem(zip_file):
     nyu2_test = list((row.split(',') for row in (data['data/nyu2_test.csv']).decode("utf-8").split('\n') if len(row) > 0))
 
     from sklearn.utils import shuffle
-    nyu2_train = shuffle(nyu2_train, random_state=0)
-    nyu2_test = shuffle(nyu2_test, random_state=0)
+    nyu2_train = shuffle(nyu2_train, random_state=0) #treinamento
+    nyu2_test = shuffle(nyu2_test, random_state=0) #validaçao
+    # o cara pegava o mesmo bagulho e jogava para ser treino e teste..
+    # vou tentar por um cross-validation
 
-    #if True: nyu2_train = nyu2_train[:40]
+    if True: # modo de teste
+        nyu2_train = nyu2_train[:100]
+        nyu2_test = nyu2_test[:100]
 
     # data é o dicionario {Nome: imagem}
     # nyu2_train é a lista de nomes para treinamento
-    print('Loaded ({0}) to train and ({1}) to test.'.format(len(nyu2_train),len(nyu2_test)))
+    print('Loaded ({0}) to train and ({1}) to validate.'.format(len(nyu2_train),len(nyu2_test)))
     return data, nyu2_train, nyu2_test
 
 
@@ -160,6 +164,14 @@ def getDefaultTrainTransform():
 
 def getTrainingTestingData(batch_size):
     data, nyu2_train, nyu2_test = loadZipToMem('CSVdata.zip')
+
+    # Um conjunto de dados que serao utilizados para estimação dos parametros (treinamento) 2/3
+    # Um para ajuste de parametros (validacao)  1/6
+    # Um para teste 1/6 (intocado usado apenas para a avaliacao final)
+
+    # Roda o set de treinamento todo, e calcula os RMSE pela validação,
+    #  verifica se é melhor do que o anterior se sim atualiza a rede
+    # após rodar todos os epochs calcula o RMSE usando o conjunto de teste separado
 
     # cria uma classe que ira ler da as imagens e realizar a transformação necessaria.
     transformed_training = depthDatasetMemory(data, nyu2_train, transform=getDefaultTrainTransform())

@@ -12,6 +12,7 @@ def create_window(window_size, channel=1):
     window = _2D_window.expand(channel, 1, window_size, window_size).contiguous()
     return window
 
+#Structural similarity
 def ssim(img1, img2, val_range, window_size=11, window=None, size_average=True, full=False):
     L = val_range
 
