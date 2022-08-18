@@ -4,12 +4,13 @@ from torchvision import models
 import torch.nn.functional as F
 
 # class Decoder(nn.Module):
-    # The decoder is composed of basic blocks of convolutional 
-    # layers applied on the concatenation of the 2× bilinear upsampling 
-    # of the previous block with the block in the encoder with the same spatial size after upsampling.
+#     # The decoder is composed of basic blocks of convolutional 
+#     # layers applied on the concatenation of the 2× bilinear upsampling 
+#     # of the previous block with the block in the encoder with the same spatial size after upsampling.
 #     def __init__(self, num_features=1664, decoder_width = 1.0):
 #         super(Decoder, self).__init__()
 #         features = int(num_features * decoder_width)
+#         print("features:",features)
 
 #         self.conv2 = nn.Conv2d(num_features, features, kernel_size=1, stride=1, padding=0)
 
@@ -20,42 +21,52 @@ import torch.nn.functional as F
 
 #         self.conv3 = nn.Conv2d(features//16, 1, kernel_size=3, stride=1, padding=1)
 
-    # def forward(self, features):
-    #     x_block0, x_block1, x_block2, x_block3, x_block4 = features[3], features[4], features[6], features[8], features[12]
-    #     x_d0 = self.conv2(F.relu(x_block4))
+#     def forward(self, features):
+#         # print("len Features:",len(features))
+#         x_block0, x_block1, x_block2, x_block3, x_block4 = features[3], features[4], features[6], features[8], features[12]
+#         x_d0 = self.conv2(F.relu(x_block4))
 
-    #     x_d1 = self.up1(x_d0, x_block3)
-    #     x_d2 = self.up2(x_d1, x_block2)
-    #     x_d3 = self.up3(x_d2, x_block1)
-    #     x_d4 = self.up4(x_d3, x_block0)
-    #     return self.conv3(x_d4)
+#         x_d1 = self.up1(x_d0, x_block3)
+#         x_d2 = self.up2(x_d1, x_block2)
+#         x_d3 = self.up3(x_d2, x_block1)
+#         x_d4 = self.up4(x_d3, x_block0)
+#         return self.conv3(x_d4)
 
 class UpSample(nn.Sequential):
     
     def __init__(self, skip_input, output_features):
         super(UpSample, self).__init__()
-        self.convA = nn.Conv2d(skip_input, output_features, kernel_size=3, stride=1, padding=1)
-        self.leakyreluA = nn.LeakyReLU(0.2)
-        self.convB = nn.Conv2d(output_features, output_features, kernel_size=3, stride=1, padding=1)
-        self.leakyreluB = nn.LeakyReLU(0.2)
+
+        self.UpSample_block = nn.Sequential(
+            nn.Conv2d(skip_input, output_features, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(output_features, output_features, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(0.2)
+        )
+        
+        # self.convA = nn.Conv2d(skip_input, output_features, kernel_size=3, stride=1, padding=1)
+        # self.leakyreluA = nn.LeakyReLU(0.2)
+        # self.convB = nn.Conv2d(output_features, output_features, kernel_size=3, stride=1, padding=1)
+        # self.leakyreluB = nn.LeakyReLU(0.2)
 
     def forward(self, x, concat_with):
         up_x = F.interpolate(x, size=[concat_with.size(2), concat_with.size(3)], mode='bilinear', align_corners=True)
         x = torch.cat([up_x, concat_with], dim=1)
-        x = self.convA(x)
-        x = self.leakyreluA(x)
-        x = self.convB(x)
-        x = self.leakyreluB(x)
-        return x
+        # x = self.convA(x)
+        # x = self.leakyreluA(x)
+        # x = self.convB(x)
+        # x = self.leakyreluB(x)
+        return self.UpSample_block(x)
+        
 
 
 class Decoder(nn.Module):
     # https://github.com/alinstein/Depth_estimation/blob/master/Mobile_model.py
-    def __init__(self, num_features=1280, decoder_width = .6):
+    def __init__(self, num_features=1280, decoder_width = 1.0): #0.6 pegou 60% do decoder?
         super(Decoder, self).__init__()
         features = int(num_features * decoder_width)
+        # print("features:",features)
 
-        # poderia por um sequential aqui
         self.conv2 = nn.Conv2d(num_features, features, kernel_size=1, stride=1, padding=1)
         
         self.up0 = UpSample(skip_input=features//1 + 320, output_features=features//2)
@@ -67,7 +78,9 @@ class Decoder(nn.Module):
 
         self.conv3 = nn.Conv2d(features//16, 1, kernel_size=3, stride=1, padding=1)
 
+
     def forward(self, features):
+        # print("len Features:",len(features))
         x_block0, x_block1, x_block2, x_block3, x_block4,x_block5,x_block6 = features[2], features[4], features[6], features[9], features[15],features[18],features[19]
         x_d0 = self.conv2(x_block6)
         x_d1 = self.up0(x_d0, x_block5)
@@ -82,12 +95,43 @@ class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
         import torchvision.models as models
-        self.original_model = models.mobilenet_v2( pretrained=True )
-        # self.original_model = models.densenet169( pretrained=True ) # True to transfer learning
+        # backbone_nn = models.mobilenet_v2( pretrained=True )
+        # backbone_nn = models.mobilenet_v3_large( pretrained=True ) 
+        # backbone_nn = models.densenet169( pretrained=True ) # True to transfer learning
+
+        backbone_nn = models.mobilenet_v2( pretrained=True )
+
+        # modules = list(backbone_nn.children())[:-1]  # delete the last fc layer.
+        # backbone_nn = nn.Sequential(*modules)
+
+        
+        # print(backbone_nn.classifier)
+        # n_inputs = model.fc.in_features
+        # # add more layers as required
+        # classifier = nn.Sequential(OrderedDict([
+        #     ('fc1', nn.Linear(n_inputs, 512))
+        # ]))
+
+        # model.fc = classifier
+
+
+
+        # FasterRCNN needs to know the number of
+        # output channels in a backbone. For resnet101, it's 2048
+        print("NOT freezing backbone layers")
+        for param in backbone_nn.parameters():
+            param.requires_grad = True
+        # backbone_nn.out_channels = 1000 # try put on the last layer
+        # print(backbone_nn)
+        # print("@@@ END BACKBONE @@@")
+
+
+        self.original_model = backbone_nn
 
     def forward(self, x):
         features = [x]
-        for k, v in self.original_model.features._modules.items(): features.append( v(features[-1]) )
+        for k, v in self.original_model.features._modules.items():
+            features.append( v(features[-1]) )
         return features
 
 class PTModel(nn.Module):
@@ -99,3 +143,33 @@ class PTModel(nn.Module):
     def forward(self, x):
         return self.decoder( self.encoder(x) )
 
+# class ESPCN(nn.Module):
+#     def __init__(self, scale_factor, num_channels=1):
+#         super(ESPCN, self).__init__()
+#         self.first_part = nn.Sequential(
+#             nn.Conv2d(num_channels, 64, kernel_size=5, padding=5//2),
+#             nn.Tanh(),
+#             nn.Conv2d(64, 32, kernel_size=3, padding=3//2),
+#             nn.Tanh(),
+#         )
+#         self.last_part = nn.Sequential(
+#             nn.Conv2d(32, num_channels * (scale_factor ** 2), kernel_size=3, padding=3 // 2),
+#             nn.PixelShuffle(scale_factor)
+#         )
+
+#         self._initialize_weights()
+
+#     def _initialize_weights(self):
+#         for m in self.modules():
+#             if isinstance(m, nn.Conv2d):
+#                 if m.in_channels == 32:
+#                     nn.init.normal_(m.weight.data, mean=0.0, std=0.001)
+#                     nn.init.zeros_(m.bias.data)
+#                 else:
+#                     nn.init.normal_(m.weight.data, mean=0.0, std=math.sqrt(2/(m.out_channels*m.weight.data[0][0].numel())))
+#                     nn.init.zeros_(m.bias.data)
+
+#     def forward(self, x):
+#         x = self.first_part(x)
+#         x = self.last_part(x)
+#         return x

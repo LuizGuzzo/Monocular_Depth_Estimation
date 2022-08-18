@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.utils as utils
 import torchvision.utils as vutils    
 from tensorboardX import SummaryWriter
-import os
+import math
 
 from matplotlib import pyplot as plt
 from model import PTModel
@@ -17,29 +17,35 @@ from utils import AverageMeter, DepthNorm, colorize
 
 
 # TODO:
-#  > DONE corrigir bug q o epoch nao esta sendo salvo com o modelo de checkpoint
-#  > DONE corrigir bug de log
-#  > fazer um programa que testa o modelo - HARD
-#  > verificar como que ta sendo usado o batch size
-#  > alterar o metodo de avaliação que ta usando 654 testes para 50688 treinos
-#  > como adicionar o STD no modelo
+#  > DONE: corrigir bug q o epoch nao esta sendo salvo com o modelo de checkpoint
+#  > DONE: corrigir bug de log
+#  > DONE: fazer um programa que testa o modelo
+#  > Fazer um avaliador da rede 
+#  > verificar como que ta sendo usado o batch size, pq o log registra a quantidade de imagens igual do BS
+#  > DONE: alterar o metodo de avaliação que ta usando 654 testes para 50688 treinos
+#  > como adicionar o DTS no modelo
 #  > como por ResNet? acho q n precisa, ja q a ideia é outra.
+#  > DONE: dar um split no training pq o test tem um GT diferente
 
-# TODO: como que eu consigo printar uma imagem após o processamento?
-# não consegui extrair a imagem pura para dar um img.show()
+# achar o desenho do mobile transfer e tentar entender cm o codigo, depois aplicar o mesmo pro q tinha antes
+# apos estudar verificar cm fazer isso com outros desenhos..
+
+# DONE: como que eu consigo printar uma imagem após o processamento?
+# DONE: não consegui extrair a imagem pura para dar um img.show()
 # TODO: provavelmente terei que alterar como é registrado o LOG
 
 # Duvidas:
-# gradiente é necessariamente oque? a curva? a tecnica? quanto menor gradiente significa menor erro?
+# gradiente é necessariamente oque? a curva? a tecnica? quanto menor gradiente significa menor erro? isso seria o loss
 # porque o loss aumenta quando termina o epoch e depois volta ao normal?
+# o GT do teste é mais escuro do que o de treino, isso atrapalharia o resultado nao?
 
 def main():
     # Arguments
     parser = argparse.ArgumentParser(description='High Quality Monocular Depth Estimation via Transfer Learning')
-    parser.add_argument('--epochs', default=10, type=int, help='number of total epochs to run')
+    parser.add_argument('--epochs', default=500, type=int, help='number of total epochs to run')
     parser.add_argument('--lr', '--learning-rate', default=0.0001, type=float, help='initial learning rate')
     parser.add_argument('--bs', default=7, type=int, help='batch size')
-    parser.add_argument('--cp', default=0, type=int, help='1 to enable usage of the last checkpoint')
+    parser.add_argument('--cp', default=1, type=int, help='1 to enable usage of the last checkpoint')
     args = parser.parse_args()
     
     # Create model
@@ -53,7 +59,7 @@ def main():
     prefix = 'MobileNet_' + str(batch_size)
 
     # Load data
-    train_loader, validation_loader = getTrainingTestingData(batch_size=batch_size)
+    train_loader, test_loader = getTrainingTestingData(batch_size=batch_size)
 
     # Logging
     writer = SummaryWriter(comment='{}-lr{}-e{}-bs{}'.format(prefix, args.lr, args.epochs, args.bs), flush_secs=30)
@@ -61,13 +67,13 @@ def main():
     # Loss
     # Creates a criterion that measures the mean absolute error (MAE) between each element in the input x and target y.
     l1_criterion = nn.L1Loss()
-    # Creates a validation criterion
-    MSE_criterion = nn.MSELoss()
+
 
     epoch_interation = 0
     if args.cp == 1 :
         print("starting training from the last checkpoint")
         checkpoint = torch.load("./checkpoints/global_checkpoint.pth")
+        # checkpoint = torch.load("./checkpoints/freeze-ep10-loss0.0427.pth")
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         epoch_interation = checkpoint['epoch']
@@ -89,7 +95,6 @@ def main():
         end = time.time()
 
         for i, sample_batched in enumerate(train_loader):
-            optimizer.zero_grad() 
 
             # Prepare sample and target
             image = torch.autograd.Variable(sample_batched['image'].cuda())
@@ -103,13 +108,14 @@ def main():
 
             # Compute the loss
             l_depth = l1_criterion(output, depth_n) # criterion that measures the mean absolute error (MAE) between each element in the input x and target y
-            print("l_depth.item():",l_depth.item())
+            # print("l_depth.item():",l_depth.item())
             l_ssim = torch.clamp((1 - ssim(output, depth_n, val_range = 1000.0 / 10.0)) * 0.5, 0, 1)
-            print("l_ssim.item():",l_ssim.item())
+            # print("l_ssim.item():",l_ssim.item())
 
             loss = (1.0 * l_ssim) + (0.1 * l_depth) # l_depth tem peso 0.1 e l_ssim tem peso 1?
 
             # Update step
+            optimizer.zero_grad() # The gradients are then set to zero before each update
             losses.update(loss.data.item(), image.size(0))
             loss.backward() # gradiants computed
             optimizer.step() # method, that updates the parameters.
@@ -132,60 +138,13 @@ def main():
                 # Log to tensorboard
                 writer.add_scalar('Train/Loss', losses.val, niter)
 
-            if i % 300 == 0: # a cada 300 imagens processadas
+            if i % 300 == 0: # registra a imagem como ela esta sendo processada pela rede
                 print("Recording epoch`s intermediate results. %300")
-                LogProgress(model, writer, validation_loader, niter)
-                
-        # """
-        # validate the NN trained
-
-        # average relative error (rel)
-        # root mean squared error (rms) nn.MSELoss
-        # average (log10) error
-        # threshold accuracy (δi)
-
-        # calcular a avaliação da rede recem treinada pelo todo dataset de avaliaçao
-        # e compara-lo com a ultima avaliação feita, a melhor avaliação é mantida a rede
-        # se nao existe rede passada (é o epoch 0) apenas continue
-
-        # validation step
-        model.eval()
-
-        for i, sample_batched in enumerate(validation_loader):
-            
-            image = torch.autograd.Variable(sample_batched['image'].cuda())
-            depth = torch.autograd.Variable(sample_batched['depth'].cuda(non_blocking=True))
-
-            depth_n = DepthNorm( depth ) # GT
-            output = model(image) # predicted GT
-
-            MSE = MSE_criterion(output, depth_n)
-
-            #somar todos MSE
-
-        # TODO: tirar raiz do MSE
-
-        if (RMSE < Old_RMSE) or (epoch == 0): # o antigo é pior que o atual OU é epoch zero
-            # atualiza o antigo para ser o atual
-            print("New_model wins. Overwriting the Old_model")
-            Old_Model = model
-            Old_optimzer = optimizer
-            Old_MSE_criterion = MSE_criterion
-            Old_loss = loss
-        else:
-            # antigo é melhor que o atual, atual recebe o antigo
-            print("Old_model wins. Overwriting the New_model")
-            model = Old_Model
-            optimizer = Old_optimzer
-            MSE_criterion = Old_MSE_criterion
-            loss = Old_loss
-
-
-        # """
+                LogProgress(model, writer, test_loader, niter)
 
         # Record epoch's intermediate results
         print("Recording epoch`s intermediate results")
-        LogProgress(model, writer, validation_loader, niter)
+        LogProgress(model, writer, test_loader, niter)
         writer.add_scalar('Train/Loss.avg', losses.avg, epoch)
 
         # Record checkpoint
@@ -201,13 +160,77 @@ def main():
             }, CHECK_PATH) 
         
         print("checkpoint saved at:",CHECK_PATH)
+    
+
+    # https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html
+    # ensina a salvar a rede e usar a q tem melhor validacao
+    # Creates a validation criterion
+    # MSE_criterion = nn.MSELoss()
+    # Old_RMSE = 0
+    
+    # # """
+    # # validate the NN trained
+
+    # # average relative error (rel)
+    # # root mean squared error (rms) nn.MSELoss + root
+    # # average (log10) error
+    # # threshold accuracy (δi)
+
+    # # calcular a avaliação da rede recem treinada pelo todo dataset de avaliaçao
+    # # e compara-lo com a ultima avaliação feita, a melhor avaliação é mantida a rede
+    # # se nao existe rede passada (é o epoch 0) apenas continue
+
+    # # validation step
+    # model.eval()
+    # MSE = []
+    # actual = []
+    # pred = []
+    # for i, sample_batched in enumerate(test_loader):
         
+    #     image = torch.autograd.Variable(sample_batched['image'].cuda())
+    #     depth = torch.autograd.Variable(sample_batched['depth'].cuda(non_blocking=True))
+
+    #     depth_n = DepthNorm( depth ) # GT
+    #     output = model(image) # predicted GT
+
+    #     MSE.append(MSE_criterion(output, depth_n))
+
+    #     del image
+    #     del depth
+    #     del output
+
+    #     #somar todos MSE
+
+    # print("MSE.size:",len(MSE))
+    # RMSE = 10 # nem terminei pq ja ta dando estouro de memoria
+    # print("RMSE:",RMSE)
+    # print("Old_RMSE:",Old_RMSE)
+
+    # if (RMSE < Old_RMSE) or (epoch == 0): # o antigo é pior que o atual OU é epoch zero
+    #     # atualiza o antigo para ser o atual
+    #     print("New_model wins. Overwriting the Old_model")
+    #     Old_Model = model
+    #     Old_optimzer = optimizer
+    #     Old_MSE_criterion = MSE_criterion
+    #     Old_loss = loss
+    #     Old_RMSE = RMSE
+    # else:
+    #     # antigo é melhor que o atual, atual recebe o antigo
+    #     print("Old_model wins. Overwriting the New_model")
+    #     model = Old_Model
+    #     optimizer = Old_optimzer
+    #     MSE_criterion = Old_MSE_criterion
+    #     loss = Old_loss
+    #     RMSE = Old_RMSE
+
+
+    # # """
         
 
 
-def LogProgress(model, writer, validation_loader, epoch):
+def LogProgress(model, writer, test_loader, epoch):
     model.eval()
-    sequential = validation_loader
+    sequential = test_loader
     sample_batched = next(iter(sequential))
     image = torch.autograd.Variable(sample_batched['image'].cuda())
     depth = torch.autograd.Variable(sample_batched['depth'].cuda(non_blocking=True))
@@ -233,8 +256,10 @@ def LogProgress(model, writer, validation_loader, epoch):
     # print("diff_colorized_grid:", diff_colorized_grid.shape) # (3, 486, 1934)
     writer.add_image('Train.3.Ours', output_colorized_grid, epoch)
     writer.add_image('Train.3.Diff', diff_colorized_grid, epoch)
+   
+    writer.add_image('Train.3.Ours', output_colorized_grid, epoch)
+    writer.add_image('Train.3.Diff', diff_colorized_grid, epoch)
 
-    # plt.imshow(output_colorized_grid)#,interpolation='nearest')
     del image
     del depth
     del output

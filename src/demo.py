@@ -21,76 +21,86 @@ from utils import AverageMeter, DepthNorm, colorize
 def _is_pil_image(img):
     return isinstance(img, Image.Image)
 
-lr = 0.0001
+def image_loader(image_name):
+    """load image, returns cuda tensor"""
+    image = Image.open(image_name)
+    # print("image_size1:",image.size)
+    image = loader(image).float()
+    # print("image_shape2:",image.shape)
+    image = Variable(image, requires_grad=True)
+    # print("image_shape3:",image.shape)
+    image = image.unsqueeze(0)  #this is for VGG, may not be needed for ResNet
+    # print("image_shape4:",image.shape)
+    return image.cuda(non_blocking=True)  #assumes that you're using GPU
 
+
+lr = 0.0001
+l1_criterion = nn.L1Loss()
 
 model = PTModel().cuda()
 optimizer = torch.optim.Adam( model.parameters(), lr )
 
-checkpoint = torch.load("./checkpoints/epoch-0_loss-0.13168993592262268.pth")
+#Loading the model
+checkpoint = torch.load("./checkpoints/freeze-ep10-loss0.0427.pth")
 model.load_state_dict(checkpoint['model_state_dict'])
 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 epoch = checkpoint['epoch']
 loss = checkpoint['loss']
-
 model.eval()
-# - or -
-#model.train()
 
-image = Image.open('data/nyu2_test/00170_colors.png')
+
+# raw images
+image = Image.open('data/nyu2_train/bathroom_0023_out/10.jpg')
+depth = Image.open('data/nyu2_train/bathroom_0023_out/10.png')
 image.show()
-if not _is_pil_image(image): raise TypeError('img should be PIL Image. Got {}'.format(type(image)))
+depth.show()
+print("image.size:",image.size)
+print("depth.size:",depth.size)
+
+
+# def test(): 
+#     test_loss = 0
+#     for images, depth in loader:
+#         image = image_loader('data/nyu2_train/bathroom_0023_out/10.jpg')
+#         depth = image_loader('data/nyu2_train/bathroom_0023_out/10.png')        
+
+#         output = model(image)
+
+#         l_depth = l1_criterion(output, depth_n) 
+#         l_ssim = torch.clamp((1 - ssim(output, depth_n, val_range = 1000.0 / 10.0)) * 0.5, 0, 1)
+#         loss = (1.0 * l_ssim) + (0.1 * l_depth)
+#         test_loss += loss.data.item()
+    
+#     test_lost /= len(loader)
+
 
 # """ 
-imsize = 480
+imsize = 960
 loader = vtransforms.Compose([vtransforms.Scale(imsize), vtransforms.ToTensor()])
 
-def image_loader(image_name):
-    """load image, returns cuda tensor"""
-    image = Image.open(image_name)
-    print("image_size1:",image.size)
-    image = loader(image).float()
-    print("image_shape2:",image.shape)
-    image = Variable(image, requires_grad=True)
-    print("image_shape3:",image.shape)
-    image = image.unsqueeze(0)  #this is for VGG, may not be needed for ResNet
-    print("image_shape4:",image.shape)
-    return image.cuda(non_blocking=True)  #assumes that you're using GPU
 
-image = image_loader('data/nyu2_test/00170_colors.png')
-print("input_shape:",image.shape)
+# inicio = time.time()
+# execTime = time.time() - inicio
+
+
+image = image_loader('data/nyu2_train/bathroom_0023_out/10.jpg')
+# print("input_shape:",image.shape)
+
+depth = image_loader('data/nyu2_train/bathroom_0023_out/10.png')
+depth_n = DepthNorm( depth )
 
 
 output = model(image)
-output = vtransforms.ToPILImage()(output.int().squeeze(0))
-output.show()
-
-# """
-
-# def getNoTransform(is_test=False):
-#     return transforms.Compose([
-#         ToTensor(is_test=is_test)
-#     ])
+vtransforms.ToPILImage()(output.int().squeeze(0)).show()
 
 
-# transformed_testing = depthDatasetMemory(data, nyu2_train, transform=getNoTransform())
-# test_loader = DataLoader(transformed_testing, shuffle=False)
 
-# # sequential = test_loader
-# # sample_batched = next(iter(sequential))
 
-# for i, sample_batched in enumerate(test_loader):
+# print("resolução da saida:",output.size)
+# diff = torch.abs(output-depth).data
 
-#     # Prepare sample and target
-#     image = sample_batched['image'].cuda()
-#     depth = sample_batched['depth'].cuda(non_blocking=True)
-
-#     # Normalize depth
-#     depth_n = DepthNorm( depth )
-
-#     # Predict
-#     output = model(image)
-
-#     # LogProgress(model, writer, test_loader, niter)
-#     colorize(vutils.make_grid(output.data, nrow=6, normalize=False))
-    
+# Compute the loss
+l_depth = l1_criterion(output, depth_n) 
+l_ssim = torch.clamp((1 - ssim(output, depth_n, val_range = 1000.0 / 10.0)) * 0.5, 0, 1)
+loss = (1.0 * l_ssim) + (0.1 * l_depth)
+print("loss:",loss.data.item())

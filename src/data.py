@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
 from torchvision import transforms, utils
 from PIL import Image
 from io import BytesIO
@@ -51,18 +51,23 @@ def loadZipToMem(zip_file):
     from zipfile import ZipFile
     input_zip = ZipFile(zip_file)
     data = {name: input_zip.read(name) for name in input_zip.namelist()}
-    nyu2_train = list((row.split(',') for row in (data['data/nyu2_train.csv']).decode("utf-8").split('\n') if len(row) > 0))
-    nyu2_test = list((row.split(',') for row in (data['data/nyu2_test.csv']).decode("utf-8").split('\n') if len(row) > 0))
+    nyu2_train_raw = list((row.split(',') for row in (data['data/nyu2_train.csv']).decode("utf-8").split('\n') if len(row) > 0))
+    # nyu2_test = list((row.split(',') for row in (data['data/nyu2_test.csv']).decode("utf-8").split('\n') if len(row) > 0))
 
     from sklearn.utils import shuffle
-    nyu2_train = shuffle(nyu2_train, random_state=0) #treinamento
-    nyu2_test = shuffle(nyu2_test, random_state=0) #validaçao
-    # o cara pegava o mesmo bagulho e jogava para ser treino e teste..
-    # vou tentar por um cross-validation
+    nyu2_train_raw = shuffle(nyu2_train_raw, random_state=0) #treinamento
+    # nyu2_test = shuffle(nyu2_test, random_state=0) #validaçao
 
-    if True: # modo de teste
-        nyu2_train = nyu2_train[:100]
-        nyu2_test = nyu2_test[:100]
+    split = int(np.floor(.2*len(nyu2_train_raw))) #20% do dataset
+    
+    # nyu2_train = nyu2_train_raw[split:]
+    # nyu2_test = nyu2_train_raw[:split]
+
+    nyu2_train = nyu2_test = nyu2_train_raw # treinando errado para verificar se vale a pena..
+
+    # if True: # modo de teste
+    #     nyu2_train = nyu2_train[:100]
+    #     nyu2_test = nyu2_test[:100]
 
     # data é o dicionario {Nome: imagem}
     # nyu2_train é a lista de nomes para treinamento
