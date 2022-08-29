@@ -13,7 +13,7 @@ from tensorboardX import SummaryWriter
 
 import matplotlib.pyplot as plt
 from PIL import Image
-from model import PTModel
+from model_mobileV3 import PTModel
 from loss import ssim
 from data import getTrainingTestingData
 from utils import AverageMeter, DepthNorm, colorize

@@ -1,0 +1,19 @@
+instalar o cuda
+pip3 install torch torchvision torchaudio
+pip install tensorboardx
+pip install matplotlib
+pip install pandas
+pip3 install -U scikit-learn
+
+ssh  luizguzzo@172.19.113.14
+tmux attach-session -t "monocular" (fica de olho se vc n mudou o nome)
+
+
+https://fboldt.github.io/labfbro.html
+
+
+cp arq.txt arq2.txt (comando de copiar)
+mv arq.txt arq2.txt (comando de renomear)
+
+tmux new -s [name] (criar secao no tmux)
+tmux attach-session -t [name] (se relogar a secao)

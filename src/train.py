@@ -10,7 +10,7 @@ from tensorboardX import SummaryWriter
 import math
 
 from matplotlib import pyplot as plt
-from model import PTModel
+from model_mobileV3 import PTModel
 from loss import ssim
 from data import getTrainingTestingData
 from utils import AverageMeter, DepthNorm, colorize
@@ -107,6 +107,8 @@ def main():
             output = model(image)
 
             # Compute the loss
+            # print("outputSize:",output.size())
+            # print("depth_n:",depth_n.size())
             l_depth = l1_criterion(output, depth_n) # criterion that measures the mean absolute error (MAE) between each element in the input x and target y
             # print("l_depth.item():",l_depth.item())
             l_ssim = torch.clamp((1 - ssim(output, depth_n, val_range = 1000.0 / 10.0)) * 0.5, 0, 1)
