@@ -129,5 +129,10 @@ dmypy.json
 .pyre/
 
 # Datasets
+*.rar
 *.zip
 data/
+
+#runs and checkpoints
+runs/
+checkpoints/

@@ -183,4 +183,8 @@ def getTrainingTestingData(batch_size):
     transformed_testing = depthDatasetMemory(data, nyu2_test, transform=getNoTransform())
 
     # https://pytorch.org/vision/stable/datasets.html?highlight=torch%20utils%20dataset 
-    return DataLoader(transformed_training, batch_size, shuffle=True), DataLoader(transformed_testing, batch_size, shuffle=False)
+    dataloaders = {
+        'train' : DataLoader(transformed_training, batch_size, shuffle=True),
+        'val' : DataLoader(transformed_testing, batch_size, shuffle=False)
+    }
+    return dataloaders
