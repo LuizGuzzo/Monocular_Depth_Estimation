@@ -52,22 +52,20 @@ def loadZipToMem(zip_file):
     input_zip = ZipFile(zip_file)
     data = {name: input_zip.read(name) for name in input_zip.namelist()}
     nyu2_train_raw = list((row.split(',') for row in (data['data/nyu2_train.csv']).decode("utf-8").split('\n') if len(row) > 0))
-    # nyu2_test = list((row.split(',') for row in (data['data/nyu2_test.csv']).decode("utf-8").split('\n') if len(row) > 0))
+    nyu2_test_raw = list((row.split(',') for row in (data['data/nyu2_test.csv']).decode("utf-8").split('\n') if len(row) > 0)) # nao funciona, alguma leitura errada no GT retorna tudo branco
 
     from sklearn.utils import shuffle
-    nyu2_train_raw = shuffle(nyu2_train_raw, random_state=0) #treinamento
-    # nyu2_test = shuffle(nyu2_test, random_state=0) #validaçao
-
-    split = int(np.floor(.2*len(nyu2_train_raw))) #20% do dataset
-    
-    # nyu2_train = nyu2_train_raw[split:]
-    # nyu2_test = nyu2_train_raw[:split]
-
-    nyu2_train = nyu2_test = nyu2_train_raw # treinando errado para verificar se vale a pena..
+    nyu2_train = shuffle(nyu2_train_raw, random_state=0) #treinamento
+    nyu2_test = shuffle(nyu2_test_raw, random_state=0) #validaçao
 
     # if True: # modo de teste
-    #     nyu2_train = nyu2_train[:100]
-    #     nyu2_test = nyu2_test[:100]
+    #     nyu2_train = nyu2_train[:1000]
+    #     nyu2_test = nyu2_test[:1000]
+
+    split = int(np.floor(.3*len(nyu2_train_raw))) #20% do dataset
+    nyu2_train, nyu2_test = nyu2_train[split:], nyu2_train[:split] # split method
+
+    # nyu2_train = nyu2_test = nyu2_train # wrong training method
 
     # data é o dicionario {Nome: imagem}
     # nyu2_train é a lista de nomes para treinamento
@@ -167,16 +165,9 @@ def getDefaultTrainTransform():
         ToTensor()
     ])
 
+
 def getTrainingTestingData(batch_size):
     data, nyu2_train, nyu2_test = loadZipToMem('CSVdata.zip')
-
-    # Um conjunto de dados que serao utilizados para estimação dos parametros (treinamento) 2/3
-    # Um para ajuste de parametros (validacao)  1/6
-    # Um para teste 1/6 (intocado usado apenas para a avaliacao final)
-
-    # Roda o set de treinamento todo, e calcula os RMSE pela validação,
-    #  verifica se é melhor do que o anterior se sim atualiza a rede
-    # após rodar todos os epochs calcula o RMSE usando o conjunto de teste separado
 
     # cria uma classe que ira ler da as imagens e realizar a transformação necessaria.
     transformed_training = depthDatasetMemory(data, nyu2_train, transform=getDefaultTrainTransform())
@@ -184,3 +175,30 @@ def getTrainingTestingData(batch_size):
 
     # https://pytorch.org/vision/stable/datasets.html?highlight=torch%20utils%20dataset 
     return DataLoader(transformed_training, batch_size, shuffle=True), DataLoader(transformed_testing, batch_size, shuffle=False)
+
+
+
+
+
+# metodos para rapida leitura no teste
+def loadTest(zip_file):
+    print('Loading TEST zip file...', end='')
+    from zipfile import ZipFile
+    input_zip = ZipFile(zip_file)
+    data = {name: input_zip.read(name) for name in input_zip.namelist()}
+    nyu2_test_raw = list((row.split(',') for row in (data['data/nyu2_test.csv']).decode("utf-8").split('\n') if len(row) > 0))
+
+    from sklearn.utils import shuffle
+    nyu2_test = shuffle(nyu2_test_raw, random_state=0) #validaçao
+
+    if True: # modo de teste
+        nyu2_test = nyu2_test[:100]
+
+    print('Loaded ({}) to test.'.format(len(nyu2_test)))
+    return data, nyu2_test
+
+
+def getTestingData(batch_size):
+    data, nyu2_test = loadTest('testData.zip')
+    transformed_testing = depthDatasetMemory(data, nyu2_test, transform=getNoTransform())
+    return DataLoader(transformed_testing, batch_size, shuffle=True)

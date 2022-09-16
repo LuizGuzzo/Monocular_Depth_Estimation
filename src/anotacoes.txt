@@ -1,3 +1,4 @@
+#requisitos para conseguir fazer a rede funcionar em uma maquina linux
 instalar o cuda
 pip3 install torch torchvision torchaudio
 pip install tensorboardx
@@ -5,15 +6,24 @@ pip install matplotlib
 pip install pandas
 pip3 install -U scikit-learn
 
+# comandos para conectar no PC remotamente
 ssh  luizguzzo@172.19.113.14
 tmux attach-session -t "monocular" (fica de olho se vc n mudou o nome)
 
-
+#site das Maquinas do IFES
 https://fboldt.github.io/labfbro.html
 
-
+#comandos basicos do linux
 cp arq.txt arq2.txt (comando de copiar)
 mv arq.txt arq2.txt (comando de renomear)
 
 tmux new -s [name] (criar secao no tmux)
 tmux attach-session -t [name] (se relogar a secao)
+
+#usa esse codigo no cmd do meu PC nao do IFES
+scp luizguzzo@172.19.113.14:~\repositorio\Monocular_Depth_Estimation\src\treinamentoIfes.zip C:\Users\luizg\Documents\repositorios\Dissertacao_MDE
+
+[oque voce quer no PC remoto] [aonde voce quer no seu pc]
+
+#iniciar o log do tensorflow
+tensorboard --logdir=runs

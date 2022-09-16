@@ -16,7 +16,7 @@ from PIL import Image
 from model_mobileV3 import PTModel
 from loss import ssim
 from data import getTrainingTestingData
-from utils import AverageMeter, DepthNorm, colorize
+from utils import AverageMeter, DepthNorm, colorize, compute_errors
 
 def _is_pil_image(img):
     return isinstance(img, Image.Image)
@@ -41,7 +41,7 @@ model = PTModel().cuda()
 optimizer = torch.optim.Adam( model.parameters(), lr )
 
 #Loading the model
-checkpoint = torch.load("./checkpoints/freeze-ep10-loss0.0427.pth")
+checkpoint = torch.load("./checkpoints/mob3L-ep3-loss0.040_10kDS.pth")
 model.load_state_dict(checkpoint['model_state_dict'])
 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 epoch = checkpoint['epoch']
@@ -49,20 +49,20 @@ loss = checkpoint['loss']
 model.eval()
 
 
-# raw images
-image = Image.open('data/nyu2_train/bathroom_0023_out/10.jpg')
-depth = Image.open('data/nyu2_train/bathroom_0023_out/10.png')
-image.show()
-depth.show()
-print("image.size:",image.size)
-print("depth.size:",depth.size)
+# # raw images
+# image = Image.open('10.jpg')
+# depth = Image.open('10.png')
+# image.show()
+# depth.show()
+# print("image.size:",image.size)
+# print("depth.size:",depth.size)
 
 
 # def test(): 
 #     test_loss = 0
 #     for images, depth in loader:
-#         image = image_loader('data/nyu2_train/bathroom_0023_out/10.jpg')
-#         depth = image_loader('data/nyu2_train/bathroom_0023_out/10.png')        
+#         image = image_loader('10.jpg')
+#         depth = image_loader('10.png')        
 
 #         output = model(image)
 
@@ -75,6 +75,7 @@ print("depth.size:",depth.size)
 
 
 # """ 
+eval_measures = torch.zeros(10).cuda()
 imsize = 960
 loader = vtransforms.Compose([vtransforms.Scale(imsize), vtransforms.ToTensor()])
 
@@ -83,16 +84,26 @@ loader = vtransforms.Compose([vtransforms.Scale(imsize), vtransforms.ToTensor()]
 # execTime = time.time() - inicio
 
 
-image = image_loader('data/nyu2_train/bathroom_0023_out/10.jpg')
+image = image_loader('10.jpg')
 # print("input_shape:",image.shape)
 
-depth = image_loader('data/nyu2_train/bathroom_0023_out/10.png')
+depth = image_loader('10.png')
 depth_n = DepthNorm( depth )
 
 
 output = model(image)
+print("depth_n.shape:",depth_n.data.shape)
+print("output.shape:",output.data.shape)
+
+vtransforms.ToPILImage()(image[0,:].data).show()
+vtransforms.ToPILImage()(depth_n[0,:].data).show()
+vtransforms.ToPILImage()(depth_n.int().squeeze(0)).show()
+vtransforms.ToPILImage()(output[0,:].data).show()
 vtransforms.ToPILImage()(output.int().squeeze(0)).show()
 
+measures = compute_errors(depth_n, output)
+eval_measures[:9] += torch.tensor(measures).cuda()
+eval_measures[9] += 1
 
 
 
