@@ -16,12 +16,13 @@ https://fboldt.github.io/labfbro.html
 #comandos basicos do linux
 cp arq.txt arq2.txt (comando de copiar)
 mv arq.txt arq2.txt (comando de renomear)
+zip arq.zip arq1 arq2 (com -r dps do zip é para fazer na pasta toda)
 
 tmux new -s [name] (criar secao no tmux)
 tmux attach-session -t [name] (se relogar a secao)
 
 #usa esse codigo no cmd do meu PC nao do IFES
-scp luizguzzo@172.19.113.14:~\repositorio\Monocular_Depth_Estimation\src\treinamentoIfes.zip C:\Users\luizg\Documents\repositorios\Dissertacao_MDE
+scp luizguzzo@172.19.113.14:~\repositorio\Monocular_Depth_Estimation\src\mobv3.zip C:\Users\luizg\Documents\repositorios\Dissertacao_MDE
 
 [oque voce quer no PC remoto] [aonde voce quer no seu pc]
 

@@ -51,24 +51,25 @@ def loadZipToMem(zip_file):
     from zipfile import ZipFile
     input_zip = ZipFile(zip_file)
     data = {name: input_zip.read(name) for name in input_zip.namelist()}
-    nyu2_train_raw = list((row.split(',') for row in (data['data/nyu2_train.csv']).decode("utf-8").split('\n') if len(row) > 0))
-    nyu2_test_raw = list((row.split(',') for row in (data['data/nyu2_test.csv']).decode("utf-8").split('\n') if len(row) > 0)) # nao funciona, alguma leitura errada no GT retorna tudo branco
-
-    from sklearn.utils import shuffle
-    nyu2_train = shuffle(nyu2_train_raw, random_state=0) #treinamento
-    nyu2_test = shuffle(nyu2_test_raw, random_state=0) #validaçao
+    nyu2_train = list((row.split(',') for row in (data['data/nyu2_train.csv']).decode("utf-8").split('\n') if len(row) > 0))
+    nyu2_test = list((row.split(',') for row in (data['data/nyu2_test.csv']).decode("utf-8").split('\n') if len(row) > 0)) # nao funciona, alguma leitura errada no GT retorna tudo branco
 
     # if True: # modo de teste
     #     nyu2_train = nyu2_train[:1000]
     #     nyu2_test = nyu2_test[:1000]
 
-    split = int(np.floor(.3*len(nyu2_train_raw))) #20% do dataset
+    split = int(np.floor(.3*len(nyu2_train))) #20% do dataset
     nyu2_train, nyu2_test = nyu2_train[split:], nyu2_train[:split] # split method
 
     # nyu2_train = nyu2_test = nyu2_train # wrong training method
 
     # data é o dicionario {Nome: imagem}
     # nyu2_train é a lista de nomes para treinamento
+
+    from sklearn.utils import shuffle
+    nyu2_train = shuffle(nyu2_train, random_state=0) 
+    nyu2_test = shuffle(nyu2_test, random_state=0)
+
     print('Loaded ({0}) to train and ({1}) to validate.'.format(len(nyu2_train),len(nyu2_test)))
     return data, nyu2_train, nyu2_test
 

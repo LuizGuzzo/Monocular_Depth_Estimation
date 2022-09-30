@@ -10,7 +10,7 @@ from tensorboardX import SummaryWriter
 import math
 
 from matplotlib import pyplot as plt
-from model_mobileV3 import PTModel
+from model_mobileV3_Unet import PTModel
 from loss import ssim
 from data import getTrainingTestingData
 from utils import AverageMeter, DepthNorm, colorize
@@ -26,7 +26,7 @@ def main():
     parser.add_argument('--epochs', default=30, type=int, help='number of total epochs to run')
     parser.add_argument('--lr', '--learning-rate', default=0.0001, type=float, help='initial learning rate')
     parser.add_argument('--bs', default=7, type=int, help='batch size')
-    parser.add_argument('--cp', default=1, type=int, help='1 to enable usage of the last checkpoint')
+    parser.add_argument('--cp', default=0, type=int, help='1 to enable usage of the last checkpoint')
     args = parser.parse_args()
     
     # Create model
