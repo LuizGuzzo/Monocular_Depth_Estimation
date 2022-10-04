@@ -4,20 +4,32 @@ from torchvision import models
 import torch.nn.functional as F
 
 class ConvBlock(nn.Sequential):
-    # vai dar erro de resolucao
-    def __init__(self, in_channels, out_channels): # oque tenho, e o quanto que quero ter
+    def __init__(self, in_channels, out_channels):
         super(ConvBlock, self).__init__()
-        self.convA = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1) #up (+ pixel - canais)
-        self.leakyreluA = nn.LeakyReLU(0.2)
-        self.convB = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1)
-        self.leakyreluB = nn.LeakyReLU(0.2)
-
+        self.convblock = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(0.2)
+        )
+        
     def forward(self, x):        
-        x = self.convA(x)
-        x = self.leakyreluA(x)
-        x = self.convB(x)
-        x = self.leakyreluB(x)
-        return x
+        return self.convblock(x)
+
+
+def crop_img(source, target): # img menor , img maior (no upsampling)
+    # https://github.com/milesial/Pytorch-UNet/blob/master/unet/unet_parts.py
+    diffX = target.size()[2] - source.size()[2]
+    diffY = target.size()[3] - source.size()[3]
+
+    # source = F.pad(source, [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2])
+    # realizando o corte da imagem maior com o tamanho da img menor (proposto no paper do U-net)
+    cropped_target = target[:,:,
+                diffX//2:target.size()[2] - diffX//2,
+                diffY//2:target.size()[3] - diffY//2
+            ]
+    return cropped_target
+
 
 # processar 1280 > 1280
 
@@ -36,29 +48,64 @@ class ConvBlock(nn.Sequential):
 #   aumenta a resolucao reduzindo os canais para Xcanais #Conv2DTranspose
 #   concatena com a skip
 #   vai para conv_block
-       
-def resizeConcat(x,concat_with):
-    up_x = F.interpolate(x, size=[concat_with.size(2), concat_with.size(3)], mode='bilinear', align_corners=True)
-    x = torch.cat([up_x, concat_with], dim=1)
-    return x
+
+class Up(nn.Module):
+    # upscale e convBlock
+
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+
+        self.up = nn.ConvTranspose2d(in_channels, in_channels, kernel_size=2, stride=2)
+        # dobro os canais porque sera processado a concatenação de 2 imagens
+        self.conv = ConvBlock(in_channels*2, out_channels) 
+
+    def forward(self, input, concat_with):
+        # up = self.up(input) 
+        # cropped = crop_img(concat_with,up) # invertido, errado
+        # deveria estar expandindo o input (Width, hight), mas ja que o mobileNet nao expande a cada reducao de canais,
+        # estou adaptando o input pro tamanho do concat
+        inter = F.interpolate(input, size=[concat_with.size(2), concat_with.size(3)], mode='bilinear', align_corners=True)
+        concat = torch.cat([inter, concat_with], dim=1)
+        x = self.conv(concat)
+        return x
+
+# class bridge(nn.Module):
+#     def __init__(self, in_channels, out_channels):
+#         super().__init__()
+
+#         # self.bridge = nn.Sequential(
+#         #     nn.MaxPool2d(2,2),
+#         #     nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1),
+#         #     nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
+#         # )
+
+#         self.max = nn.MaxPool2d(2,2)
+#         self.conv = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1)
+#         self.trans = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
+        
+#     def forward(self, input):
+#         # return self.bridge(input)
+#         max = self.max(input)
+#         conv = self.conv(max)
+#         x = self.trans(conv)
+#         return x
 
 class Decoder(nn.Module):
-    def __init__(self, num_features=960, decoder_width = 1.0):
+    def __init__(self):
         super(Decoder, self).__init__()
-        features = int(num_features * decoder_width)
 
-        self.conv2 = nn.Conv2d(num_features, features, kernel_size=1, stride=1, padding=1) # bridge
         # 16,24,40,80,112,160,960,1280
-        # self.bridge = ConvBlock(in_channels=1280, out_channels=160) 
-        self.up0 = ConvBlock(in_channels=960*2, out_channels=160) # canais que entram, canais que sai de um input
-        self.up1 = ConvBlock(in_channels=160*2, out_channels=112)
-        self.up2 = ConvBlock(in_channels=112*2, out_channels=80)
-        self.up3 = ConvBlock(in_channels=80*2, out_channels=40)
-        self.up4 = ConvBlock(in_channels=40*2, out_channels=24)
-        self.up5 = ConvBlock(in_channels=24*2, out_channels=16)
-        self.up6 = ConvBlock(in_channels=16*2, out_channels=8)
+        # self.bridge = bridge(in_channels=960, out_channels=960) 
+        self.bridge = nn.Conv2d(960, 960, kernel_size=1, stride=1) # bridge
+        self.up0 = Up(in_channels=960, out_channels=160) # 15x20 > 15x20
+        self.up1 = Up(in_channels=160, out_channels=112) # 15x20 > 30x40
+        self.up2 = Up(in_channels=112, out_channels=80) # 30x40 > 30x40
+        self.up3 = Up(in_channels=80, out_channels=40) # 30x40 > 60x80
+        self.up4 = Up(in_channels=40, out_channels=24) # 60x80 > 120x160
+        self.up5 = Up(in_channels=24, out_channels=16) # 120x160 > 240x320
+        self.up6 = Up(in_channels=16, out_channels=8) # 240x320 > ???
 
-        self.conv3 = nn.Conv2d(8, 1, kernel_size=3, stride=1, padding=1) # 80 1
+        self.conv3 = nn.Conv2d(8, 1, kernel_size=3, stride=1, padding=1) # ??? > 480x640
 
     # def decoder_block(x,skip_input,num_filters):
     #     return nn.Sequential(
@@ -76,6 +123,7 @@ class Decoder(nn.Module):
         f_block0,       f_block1,    f_block2,     f_block3,     f_block4,    f_block5,    f_block6 = \
         features[2], features[4], features[7], features[11], features[13],features[16],features[17]
         #        16           24           40            80           112          160          960
+        # [240,320]    [120,160]      [60,80]       [30,40]       [30,40]      [15,20]      [15,20]
 
         # 0  1  2  3  4  5  6  7  8  9 10 11  12  13  14  15  16  17
         # 3,16,16,24,24,40,40,40,80,80,80,80,112,112,160,160,160,960
@@ -83,22 +131,15 @@ class Decoder(nn.Module):
         #     for block in range(len(features)):
         #         print("feature[{}]: {}".format(block,features[block].size()))
 
-        # renomeia os trem dps
-        x_d0 = self.conv2(f_block6) # bridge
-        concat_0_5 = resizeConcat(x_d0, f_block6)
-        x_d1 = self.up0(concat_0_5) # 960 > 160
-        concat_1_4 = resizeConcat(x_d1, f_block5)
-        x_d2 = self.up1(concat_1_4) #160 > 112
-        concat_2_3 = resizeConcat(x_d2, f_block4)
-        x_d3 = self.up2(concat_2_3) #112 > 80
-        concat_3_2 = resizeConcat(x_d3, f_block3)
-        x_d4 = self.up3(concat_3_2) #80 > 40
-        concat_4_1 = resizeConcat(x_d4, f_block2)
-        x_d5 = self.up4(concat_4_1) #40 > 24
-        concat_5_0 = resizeConcat(x_d5, f_block1)
-        x_d6 = self.up5(concat_5_0) #24 > 16
-        concat_5_F = resizeConcat(x_d6, f_block0)
-        x_d7 = self.up6(concat_5_F) #16 > 8
+
+        x_d0 = self.bridge(f_block6)
+        x_d1 = self.up0(x_d0, f_block6) # 960 > 160
+        x_d2 = self.up1(x_d1, f_block5) #160 > 112
+        x_d3 = self.up2(x_d2, f_block4) #112 > 80
+        x_d4 = self.up3(x_d3, f_block3) #80 > 40
+        x_d5 = self.up4(x_d4, f_block2) #40 > 24
+        x_d6 = self.up5(x_d5, f_block1) #24 > 16
+        x_d7 = self.up6(x_d6, f_block0) #16 > 8
         x_d8 = self.conv3(x_d7) # 16 > 1
 
         # # [batchSize,features(canais),width,height]
@@ -140,8 +181,10 @@ class Encoder(nn.Module):
 class PTModel(nn.Module):
     def __init__(self):
         super(PTModel, self).__init__()
-        self.encoder = Encoder()
-        self.decoder = Decoder()
+        self.Unet = nn.Sequential(
+            Encoder(),
+            Decoder()
+        )
 
     def forward(self, x):
-        return self.decoder( self.encoder(x) )
+        return self.Unet(x)
