@@ -25,7 +25,7 @@ def main():
     parser = argparse.ArgumentParser(description='High Quality Monocular Depth Estimation via Transfer Learning')
     parser.add_argument('--epochs', default=30, type=int, help='number of total epochs to run')
     parser.add_argument('--lr', '--learning-rate', default=0.0001, type=float, help='initial learning rate')
-    parser.add_argument('--bs', default=7, type=int, help='batch size')
+    parser.add_argument('--bs', default=16, type=int, help='batch size')
     parser.add_argument('--cp', default=0, type=int, help='1 to enable usage of the last checkpoint')
     args = parser.parse_args()
     

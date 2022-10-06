@@ -140,7 +140,7 @@ class Decoder(nn.Module):
         x_d5 = self.up4(x_d4, f_block2) #40 > 24
         x_d6 = self.up5(x_d5, f_block1) #24 > 16
         x_d7 = self.up6(x_d6, f_block0) #16 > 8
-        x_d8 = self.conv3(x_d7) # 16 > 1
+        x_d8 = self.conv3(x_d7) # 8 > 1
 
         # # [batchSize,features(canais),width,height]
         # print("x_block6: ",x_block6.shape) # torch.Size([5, 1280, 15, 20])

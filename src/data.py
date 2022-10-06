@@ -58,8 +58,8 @@ def loadZipToMem(zip_file):
     #     nyu2_train = nyu2_train[:1000]
     #     nyu2_test = nyu2_test[:1000]
 
-    split = int(np.floor(.3*len(nyu2_train))) #20% do dataset
-    nyu2_train, nyu2_test = nyu2_train[split:], nyu2_train[:split] # split method
+    # split = int(np.floor(.3*len(nyu2_train))) #20% do dataset
+    # nyu2_train, nyu2_test = nyu2_train[split:], nyu2_train[:split] # split method
 
     # nyu2_train = nyu2_test = nyu2_train # wrong training method
 
@@ -116,7 +116,7 @@ class ToTensor(object):
             depth = self.to_tensor(depth).float() * 1000
         
         # put in expected range
-        depth = torch.clamp(depth, 10, 1000)
+        # depth = torch.clamp(depth, 10, 1000)
 
         return {'image': image, 'depth': depth}
 
@@ -172,7 +172,7 @@ def getTrainingTestingData(batch_size):
 
     # cria uma classe que ira ler da as imagens e realizar a transformação necessaria.
     transformed_training = depthDatasetMemory(data, nyu2_train, transform=getDefaultTrainTransform())
-    transformed_testing = depthDatasetMemory(data, nyu2_test, transform=getNoTransform())
+    transformed_testing = depthDatasetMemory(data, nyu2_test, transform=getNoTransform(is_test=True))
 
     # https://pytorch.org/vision/stable/datasets.html?highlight=torch%20utils%20dataset 
     return DataLoader(transformed_training, batch_size, shuffle=True), DataLoader(transformed_testing, batch_size, shuffle=False)
@@ -201,5 +201,5 @@ def loadTest(zip_file):
 
 def getTestingData(batch_size):
     data, nyu2_test = loadTest('testData.zip')
-    transformed_testing = depthDatasetMemory(data, nyu2_test, transform=getNoTransform())
+    transformed_testing = depthDatasetMemory(data, nyu2_test, transform=getNoTransform(is_test=True))
     return DataLoader(transformed_testing, batch_size, shuffle=True)

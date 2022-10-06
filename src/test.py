@@ -52,8 +52,8 @@ def main():
 
     # Load data
     batch_size = args.bs
-    test_loader = getTestingData(batch_size=batch_size)
-    # _, test_loader = getTrainingTestingData(batch_size=batch_size)
+    # test_loader = getTestingData(batch_size=batch_size)
+    _, test_loader = getTrainingTestingData(batch_size=batch_size)
 
     # Logging
     prefix = 'TEST_MobileNetV3_large'
@@ -125,20 +125,24 @@ def main():
 
         if True: # enable view mode
             from PIL import Image
-            vtransforms.ToPILImage()(image[0,:]).show()
-            vtransforms.ToPILImage()(depth[0,:]).show()
-            vtransforms.ToPILImage()(gt_depth_cuda[0,:]).show()
-            # vtransforms.ToPILImage()(gt_depth[0,:]).show() # pq ta saindo td branco? pode ser o dataset... e ele deixa o resultado estranho na img
-            vtransforms.ToPILImage()(pred_depth_cuda[0,:]).show()
-            # vtransforms.ToPILImage()(pred_depth[0,:]).show()
             colorizedGT = colorizeCPU(gt_depth[0,:])
             colorizedPred = colorizeCPU(pred_depth[0,:])
 
-            colorizedGT.show()
-            colorizedPred.show()
+            vtransforms.ToPILImage()(image[0,:]).show(title="RGB")
+            vtransforms.ToPILImage()(depth[0,:]).show(title="depth")
 
-            Image.fromarray(mask[0,:,:]).show() #printa a mascara
-            Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedPred,Image.fromarray(np.invert(mask[0,:,:]))).show()
+            # vtransforms.ToPILImage()(gt_depth[0,:]).show(title="gt") #printa tudo escuro (é o gray)       
+            # vtransforms.ToPILImage()(pred_depth[0,:]).show(title="pred gt")
+
+            vtransforms.ToPILImage()(gt_depth_cuda[0,:]).show(title="gt cuda")
+            vtransforms.ToPILImage()(pred_depth_cuda[0,:]).show(title="pred gt cuda")
+
+            colorizedGT.show(title="gt colorized")
+            colorizedPred.show(title="pred gt colorized")
+
+            # Image.fromarray(mask[0,:,:]).show(title="mask") #printa a mascara
+            Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedGT,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation gt")
+            Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedPred,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation pred gt")
     
 
         # Image.fromarray(colorizedGT[mask[0,:,:]]).show() #nao funciona
