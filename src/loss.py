@@ -1,6 +1,7 @@
 import torch
 from math import exp
 import torch.nn.functional as F
+import torch.nn as nn
 
 def gaussian(window_size, sigma):
     gauss = torch.Tensor([exp(-(x - window_size//2)**2/float(2*sigma**2)) for x in range(window_size)])
@@ -51,3 +52,23 @@ def ssim(img1, img2, val_range, window_size=11, window=None, size_average=True, 
         return ret, cs
 
     return ret
+
+class SILogLoss(nn.Module):  # Main loss function used in AdaBins paper
+    def __init__(self):
+        super(SILogLoss, self).__init__()
+        self.name = 'SILog'
+
+    def forward(self, input, target, mask=None, interpolate=True):
+        if interpolate:
+            input = nn.functional.interpolate(input, target.shape[-2:], mode='bilinear', align_corners=True)
+
+        if mask is not None:
+            input = input[mask]
+            target = target[mask]
+        g = torch.log(input) - torch.log(target)
+        # n, c, h, w = g.shape
+        # norm = 1/(h*w)
+        # Dg = norm * torch.sum(g**2) - (0.85/(norm**2)) * (torch.sum(g))**2
+
+        Dg = torch.var(g) + 0.15 * torch.pow(torch.mean(g), 2)
+        return 10 * torch.sqrt(Dg)
