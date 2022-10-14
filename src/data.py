@@ -58,7 +58,7 @@ def loadZipToMem(zip_file):
     #     nyu2_train = nyu2_train[:1000]
     #     nyu2_test = nyu2_test[:1000]
 
-    # split = int(np.floor(.3*len(nyu2_train))) #20% do dataset
+    # split = int(np.floor(.3*len(nyu2_train))) #30% do dataset
     # nyu2_train, nyu2_test = nyu2_train[split:], nyu2_train[:split] # split method
 
     # nyu2_train = nyu2_test = nyu2_train # wrong training method
@@ -172,7 +172,7 @@ def getTrainingTestingData(batch_size):
 
     # cria uma classe que ira ler da as imagens e realizar a transformação necessaria.
     transformed_training = depthDatasetMemory(data, nyu2_train, transform=getDefaultTrainTransform())
-    transformed_testing = depthDatasetMemory(data, nyu2_test, transform=getNoTransform(is_test=True))
+    transformed_testing = depthDatasetMemory(data, nyu2_test, transform=getNoTransform())#is_test=True))
 
     # https://pytorch.org/vision/stable/datasets.html?highlight=torch%20utils%20dataset 
     return DataLoader(transformed_training, batch_size, shuffle=True), DataLoader(transformed_testing, batch_size, shuffle=False)
@@ -192,8 +192,8 @@ def loadTest(zip_file):
     from sklearn.utils import shuffle
     nyu2_test = shuffle(nyu2_test_raw, random_state=0) #validaçao
 
-    if True: # modo de teste
-        nyu2_test = nyu2_test[:100]
+    # if True: # modo de teste
+    #     nyu2_test = nyu2_test[:100]
 
     print('Loaded ({}) to test.'.format(len(nyu2_test)))
     return data, nyu2_test

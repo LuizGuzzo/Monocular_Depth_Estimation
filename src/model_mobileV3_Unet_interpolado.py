@@ -50,58 +50,62 @@ def crop_img(source, target): # img menor , img maior (no upsampling)
 #   vai para conv_block
 
 class Up(nn.Module):
-    # upscale + concat + convBlock
+    # upscale e convBlock
 
     def __init__(self, in_channels, out_channels):
         super().__init__()
 
-        self.up = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
+        self.up = nn.ConvTranspose2d(in_channels, in_channels, kernel_size=2, stride=2)
         # dobro os canais porque sera processado a concatenação de 2 imagens
-        self.convBlock = ConvBlock(out_channels*2, out_channels) 
+        self.conv = ConvBlock(in_channels*2, out_channels) 
 
     def forward(self, input, concat_with):
-        up = self.up(input) 
-        cropped = crop_img(up,concat_with) # nao precisa porque é o mesmo tamanho
-        concat = torch.cat([cropped, concat_with], dim=1)
-        x = self.convBlock(concat)
+        # up = self.up(input) 
+        # cropped = crop_img(concat_with,up) # invertido, errado
+        # deveria estar expandindo o input (Width, hight), mas ja que o mobileNet nao expande a cada reducao de canais,
+        # estou adaptando o input pro tamanho do concat
+        inter = F.interpolate(input, size=[concat_with.size(2), concat_with.size(3)], mode='bilinear', align_corners=True)
+        concat = torch.cat([inter, concat_with], dim=1)
+        x = self.conv(concat)
         return x
 
-class bridge(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
+# class bridge(nn.Module):
+#     def __init__(self, in_channels, out_channels):
+#         super().__init__()
 
-        # self.bridge = nn.Sequential(
-        #     nn.MaxPool2d(2,2),
-        #     nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1),
-        #     nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
-        # )
+#         # self.bridge = nn.Sequential(
+#         #     nn.MaxPool2d(2,2),
+#         #     nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1),
+#         #     nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
+#         # )
 
-        self.max = nn.MaxPool2d(2,2)
-        self.conv2d = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1)
-        # self.trans = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
+#         self.max = nn.MaxPool2d(2,2)
+#         self.conv = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1)
+#         self.trans = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
         
-    def forward(self, input):
-        # return self.bridge(input)
-        max = self.max(input) # 960 7x10
-        conv2d = self.conv2d(max) # 1280 7x10
-        # x = self.trans(conv2)
-        return conv2d
+#     def forward(self, input):
+#         # return self.bridge(input)
+#         max = self.max(input)
+#         conv = self.conv(max)
+#         x = self.trans(conv)
+#         return x
 
 class Decoder(nn.Module):
     def __init__(self):
         super(Decoder, self).__init__()
 
         # 16,24,40,80,112,160,960,1280
-        self.bridge = bridge(in_channels=960, out_channels=1280) # 15x20 > 7x10
-        # self.bridge = nn.Conv2d(960, 960, kernel_size=1, stride=1) # bridge 15x20 > 15x20
-        self.upa = Up(in_channels=1280, out_channels=960) # 7x10 > 15x20
-        self.up0 = Up(in_channels=960, out_channels=112) # 15x20 > 30x40
-        self.up1 = Up(in_channels=112, out_channels=40) # 30x40 > 60x80
-        self.up2 = Up(in_channels=40, out_channels=24) # 60x80 > 120x160
-        self.up3 = Up(in_channels=24, out_channels=16) # 120x160 > 240x320
-        # self.up4 = Up(in_channels=16, out_channels=8) # 240x320 > 480x640
+        # self.bridge = bridge(in_channels=960, out_channels=960) 
+        self.bridge = nn.Conv2d(960, 960, kernel_size=1, stride=1) # bridge
+        self.up0 = Up(in_channels=960, out_channels=160) # 15x20 > 15x20
+        self.up1 = Up(in_channels=160, out_channels=112) # 15x20 > 30x40
+        self.up2 = Up(in_channels=112, out_channels=80) # 30x40 > 30x40
+        self.up3 = Up(in_channels=80, out_channels=40) # 30x40 > 60x80
+        self.up4 = Up(in_channels=40, out_channels=24) # 60x80 > 120x160
+        self.up5 = Up(in_channels=24, out_channels=16) # 120x160 > 240x320
+        self.up6 = Up(in_channels=16, out_channels=8) # 240x320 > ???
 
-        self.conv3 = nn.Conv2d(16, 1, kernel_size=3, stride=1, padding=1) # 480x640 > 480x640
+        self.conv3 = nn.Conv2d(8, 1, kernel_size=3, stride=1, padding=1) # ??? > 480x640
 
     # def decoder_block(x,skip_input,num_filters):
     #     return nn.Sequential(
@@ -116,10 +120,10 @@ class Decoder(nn.Module):
 
     def forward(self, features):
         # print("len Features:",len(features))
-        f_block0,       f_block1,    f_block2,     f_block3,     f_block4,    f_block5 = \
-        features[0], features[2], features[4], features[7],  features[13],features[17]
-        #        3           16           24            40           112          960
-        # [480,640]    [240,320]    [120,160]       [60,80]       [30,40]      [15,20]      
+        f_block0,       f_block1,    f_block2,     f_block3,     f_block4,    f_block5,    f_block6 = \
+        features[2], features[4], features[7], features[11], features[13],features[16],features[17]
+        #        16           24           40            80           112          160          960
+        # [240,320]    [120,160]      [60,80]       [30,40]       [30,40]      [15,20]      [15,20]
 
         # 0  1  2  3  4  5  6  7  8  9 10 11  12  13  14  15  16  17
         # 3,16,16,24,24,40,40,40,80,80,80,80,112,112,160,160,160,960
@@ -128,14 +132,15 @@ class Decoder(nn.Module):
         #         print("feature[{}]: {}".format(block,features[block].size()))
 
 
-        x = self.bridge(f_block5) # 960 > 1280
-        x = self.upa(x, f_block5) # 960 > 112     15x20   > 30x40
-        x = self.up0(x, f_block4) # 960 > 112     30x40   > 60x80
-        x = self.up1(x, f_block3) # 112 > 40      60x80   > 120x160
-        x = self.up2(x, f_block2) # 40 > 24       120x160 > 240x320
-        x = self.up3(x, f_block1) # 24 > 16       240x320 > 480x640
-        # x_d5 = self.up4(x_d4, f_block1) # 16 > 8*       480x640 > 480x640
-        x = self.conv3(x) # 3 > 1
+        x_d0 = self.bridge(f_block6)
+        x_d1 = self.up0(x_d0, f_block6) # 960 > 160
+        x_d2 = self.up1(x_d1, f_block5) #160 > 112
+        x_d3 = self.up2(x_d2, f_block4) #112 > 80
+        x_d4 = self.up3(x_d3, f_block3) #80 > 40
+        x_d5 = self.up4(x_d4, f_block2) #40 > 24
+        x_d6 = self.up5(x_d5, f_block1) #24 > 16
+        x_d7 = self.up6(x_d6, f_block0) #16 > 8
+        x_d8 = self.conv3(x_d7) # 8 > 1
 
         # # [batchSize,features(canais),width,height]
         # print("x_block6: ",x_block6.shape) # torch.Size([5, 1280, 15, 20])
@@ -148,7 +153,7 @@ class Decoder(nn.Module):
         # print("x_d6: ",x_d6.shape) # torch.Size([5, 80, 240, 320])
         # print("x_d7: ",x_d7.shape) # torch.Size([5, 1, 240, 320])
         
-        return x
+        return x_d8
 
 
 class Encoder(nn.Module):

@@ -12,7 +12,7 @@ import numpy as np
 import torchvision.transforms as vtransforms
 
 from matplotlib import pyplot as plt
-from model_mobileV3 import PTModel
+from model_mobileV3_Unet import PTModel
 from loss import ssim
 from data import getTestingData, getTrainingTestingData
 from utils import AverageMeter, DepthNorm, colorizeCPU, compute_errors
@@ -27,8 +27,8 @@ from utils import AverageMeter, DepthNorm, colorizeCPU, compute_errors
 def main():
     # Arguments
     parser = argparse.ArgumentParser(description='Monocular Depth Estimation via Transfer Learning')
-    parser.add_argument('--bs', '--batch-size', default=16, type=int, help='batch size')
-    parser.add_argument('--pt', '--path', default="./checkpoints/mobv3_e30.pth", type=str, help='path to the model') # mob3L-ep3-loss0.040_10kDS.pth
+    parser.add_argument('--bs', '--batch-size', default=32, type=int, help='batch size') # 16
+    parser.add_argument('--pt', '--path', default="./checkpoints/mobv3_unet_e30.pth", type=str, help='path to the model') # mob3L-ep3-loss0.040_10kDS.pth
     
     parser.add_argument('--min_depth_eval',            type=float, help='minimum depth for evaluation', default=0)
     parser.add_argument('--max_depth_eval',            type=float, help='maximum depth for evaluation', default=8000)
@@ -123,32 +123,27 @@ def main():
         measures = compute_errors(gt_depth[mask], pred_depth[mask])
         # measures = compute_errors(gt_depth, pred_depth) # para remover a mascara, precisa comentar as alteraçoes do pred_depth tbm
 
-        if True: # enable view mode
-            from PIL import Image
-            colorizedGT = colorizeCPU(gt_depth[0,:])
-            colorizedPred = colorizeCPU(pred_depth[0,:])
+        # if True: # enable view mode
+        #     from PIL import Image
+        #     colorizedGT = colorizeCPU(gt_depth[0,:])
+        #     colorizedPred = colorizeCPU(pred_depth[0,:])
 
-            vtransforms.ToPILImage()(image[0,:]).show(title="RGB")
-            vtransforms.ToPILImage()(depth[0,:]).show(title="depth")
+        #     vtransforms.ToPILImage()(image[0,:]).show(title="RGB")
+        #     vtransforms.ToPILImage()(depth[0,:]).show(title="depth")
 
-            # vtransforms.ToPILImage()(gt_depth[0,:]).show(title="gt") #printa tudo escuro (é o gray)       
-            # vtransforms.ToPILImage()(pred_depth[0,:]).show(title="pred gt")
+        #     # vtransforms.ToPILImage()(gt_depth[0,:]).show(title="gt") #printa tudo escuro (é o gray)       
+        #     # vtransforms.ToPILImage()(pred_depth[0,:]).show(title="pred gt")
 
-            vtransforms.ToPILImage()(gt_depth_cuda[0,:]).show(title="gt cuda")
-            vtransforms.ToPILImage()(pred_depth_cuda[0,:]).show(title="pred gt cuda")
+        #     vtransforms.ToPILImage()(gt_depth_cuda[0,:]).show(title="gt cuda")
+        #     vtransforms.ToPILImage()(pred_depth_cuda[0,:]).show(title="pred gt cuda")
 
-            colorizedGT.show(title="gt colorized")
-            colorizedPred.show(title="pred gt colorized")
+        #     colorizedGT.show(title="gt colorized")
+        #     colorizedPred.show(title="pred gt colorized")
 
-            # Image.fromarray(mask[0,:,:]).show(title="mask") #printa a mascara
-            Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedGT,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation gt")
-            Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedPred,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation pred gt")
+        #     # Image.fromarray(mask[0,:,:]).show(title="mask") #printa a mascara
+        #     Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedGT,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation gt")
+        #     Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedPred,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation pred gt")
     
-
-        # Image.fromarray(colorizedGT[mask[0,:,:]]).show() #nao funciona
-        # Image.fromarray(pred_depth[mask][0,:,:]).show()
-
-
 
         # measures = compute_errors(gt_depth, pred_depth)
         eval_measures[:9] += torch.tensor(measures).cuda()
@@ -173,9 +168,9 @@ def main():
     cnt = eval_measures_cpu[9].item()
     eval_measures_cpu /= cnt
     print('Computing errors for {} eval samples'.format(int(cnt)))
-    print("{:>7}, {:>7}, {:>7}, {:>7}, {:>7}, {:>7}, {:>7}, {:>7}, {:>7}".format('silog', 'abs_rel', 'log10', 'rms',
-                                                                                    'sq_rel', 'log_rms', 'd1', 'd2',
-                                                                                    'd3'))
+    print("{:>7}, {:>7}, {:>7}, {:>7}, {:>7}, {:>7}, {:>7}, {:>7}, {:>7}".format(
+        'silog', 'abs_rel', 'log10', 'rms','sq_rel', 'log_rms', 'd1', 'd2','d3'))
+    #             0.123    0.053    0.465                       0.846 0.974 0.994
     for i in range(8):
         print('{:7.4f}, '.format(eval_measures_cpu[i]), end='')
     print('{:7.4f}'.format(eval_measures_cpu[8]))
