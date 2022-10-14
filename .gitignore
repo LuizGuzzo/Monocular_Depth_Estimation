@@ -134,5 +134,6 @@ dmypy.json
 data/
 
 #runs and checkpoints
+runs_selecionadas/
 runs/
 checkpoints/
