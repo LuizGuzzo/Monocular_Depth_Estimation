@@ -58,8 +58,8 @@ def loadZipToMem(zip_file):
     #     nyu2_train = nyu2_train[:1000]
     #     nyu2_test = nyu2_test[:1000]
 
-    # split = int(np.floor(.3*len(nyu2_train))) #30% do dataset
-    # nyu2_train, nyu2_test = nyu2_train[split:], nyu2_train[:split] # split method
+    split = int(np.floor(.3*len(nyu2_train))) #30% do dataset
+    nyu2_train, nyu2_test = nyu2_train[split:], nyu2_train[:split] # split method
 
     # nyu2_train = nyu2_test = nyu2_train # wrong training method
 
@@ -110,10 +110,11 @@ class ToTensor(object):
 
         depth = depth.resize((320, 240))
 
-        if self.is_test:
-            depth = self.to_tensor(depth).float() / 1000
-        else:            
-            depth = self.to_tensor(depth).float() * 1000
+        depth = self.to_tensor(depth).float()
+        # if self.is_test:
+        #     depth = self.to_tensor(depth).float() / 1000
+        # else:            
+        #     depth = self.to_tensor(depth).float() * 1000
         
         # put in expected range
         # depth = torch.clamp(depth, 10, 1000)

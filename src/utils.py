@@ -4,7 +4,8 @@ import numpy as np
 from PIL import Image
 
 def DepthNorm(depth, maxDepth=1000.0): 
-    return maxDepth / depth
+    # return maxDepth / depth
+    return (depth - depth.min())/(depth.max()-depth.min())
 
 class AverageMeter(object):
     def __init__(self):
