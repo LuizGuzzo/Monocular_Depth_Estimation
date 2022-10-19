@@ -10,8 +10,9 @@ from tensorboardX import SummaryWriter
 import math
 
 from matplotlib import pyplot as plt
-from model_mobileV3_Unet import PTModel
+from model_mobileV3_Unet_interpolado import PTModel
 from loss import ssim
+from loss import Silog_loss_variance, SILogLoss
 from data import getTrainingTestingData
 from utils import AverageMeter, DepthNorm, colorize
 
@@ -25,7 +26,7 @@ def main():
     parser = argparse.ArgumentParser(description='High Quality Monocular Depth Estimation via Transfer Learning')
     parser.add_argument('--epochs', default=30, type=int, help='number of total epochs to run')
     parser.add_argument('--lr', '--learning-rate', default=0.0001, type=float, help='initial learning rate')
-    parser.add_argument('--bs', default=16, type=int, help='batch size')
+    parser.add_argument('--bs', default=12, type=int, help='batch size')
     parser.add_argument('--cp', default=0, type=int, help='1 to enable usage of the last checkpoint')
     args = parser.parse_args()
     
@@ -48,6 +49,7 @@ def main():
     # Loss
     # Creates a criterion that measures the mean absolute error (MAE) between each element in the input x and target y.
     l1_criterion = nn.L1Loss()
+    SIlog = Silog_loss_variance()
 
 
     epoch_interation = 0
@@ -91,10 +93,12 @@ def main():
             # Compute the loss
             l_depth = l1_criterion(output, depth_n) # criterion that measures the mean absolute error (MAE) between each element in the input x and target y
             # print("l_depth.item():",l_depth.item())
-            l_ssim = torch.clamp((1 - ssim(output, depth_n, val_range = 1000.0 / 10.0)) * 0.5, 0, 1)
+            l_ssim = ssim(output, depth_n, val_range = 1000.0 / 10.0)
+            l_ssim = torch.clamp((1 - l_ssim) * 0.5, 0, 1)
             # print("l_ssim.item():",l_ssim.item())
+            l_SIlog = SIlog(output, depth_n)          
 
-            loss = (1.0 * l_ssim) + (0.1 * l_depth) # l_depth tem peso 0.1 e l_ssim tem peso 1?
+            loss = (1.0 * l_ssim) + (0.1 * l_depth) + (0.1 * l_SIlog)
 
             # Update step
             optimizer.zero_grad() # The gradients are then set to zero before each update

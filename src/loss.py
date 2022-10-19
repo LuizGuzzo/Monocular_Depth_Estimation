@@ -16,7 +16,7 @@ def create_window(window_size, channel=1):
 #Structural similarity
 def ssim(img1, img2, val_range, window_size=11, window=None, size_average=True, full=False):
     L = val_range
-
+    # luminance, contrast, structure
     padd = 0
     (_, channel, height, width) = img1.size()
     if window is None:
@@ -53,22 +53,41 @@ def ssim(img1, img2, val_range, window_size=11, window=None, size_average=True, 
 
     return ret
 
-class SILogLoss(nn.Module):  # Main loss function used in AdaBins paper
-    def __init__(self):
-        super(SILogLoss, self).__init__()
-        self.name = 'SILog'
+# class SILogLoss(nn.Module): 
+#     def __init__(self,variance_focus=0.85):
+#         super(SILogLoss, self).__init__()
+#         self.name = 'SILog'
+#         self.variance_focus = variance_focus
 
-    def forward(self, input, target, mask=None, interpolate=True):
-        if interpolate:
-            input = nn.functional.interpolate(input, target.shape[-2:], mode='bilinear', align_corners=True)
+#     def forward(self, prediction, gt, mask=None, interpolate=True):
+#         if interpolate:
+#             gt = nn.functional.interpolate(gt, prediction.shape[-2:], mode='bilinear', align_corners=True)
 
-        if mask is not None:
-            input = input[mask]
-            target = target[mask]
-        g = torch.log(input) - torch.log(target)
-        # n, c, h, w = g.shape
-        # norm = 1/(h*w)
-        # Dg = norm * torch.sum(g**2) - (0.85/(norm**2)) * (torch.sum(g))**2
+#         if mask is None:
+#             mask = (gt > 1e-3).detach()
+#             prediction = torch.clamp(prediction, min=1e-6)
+        
+#         gt = gt[mask]
+#         prediction = prediction[mask]
+        
+#         g = torch.log(gt) - torch.log(prediction)
+#         # g = gt - prediction
+#         # n, c, h, w = g.shape
+#         # norm = 1/(h*w)
+#         # Dg = norm * torch.sum(g**2) - (0.85/(norm**2)) * (torch.sum(g))**2
 
-        Dg = torch.var(g) + 0.15 * torch.pow(torch.mean(g), 2)
-        return 10 * torch.sqrt(Dg)
+#         Dg = torch.var(g) + (1-self.variance_focus) * torch.pow(torch.mean(g), 2)
+#         return 10 * torch.sqrt(Dg)
+
+class Silog_loss_variance(nn.Module): # https://github.com/SysCV/P3Depth/blob/main/src/losses/loss.py
+    def __init__(self, variance_focus=0.85):
+        super(Silog_loss_variance, self).__init__()
+        self.variance_focus = variance_focus
+
+    def forward(self, prediction, gt):
+        mask = (gt > 1e-3).detach()
+        prediction = torch.clamp(prediction, min=1e-6)
+        d = torch.log(prediction[mask]) - torch.log(gt[mask])
+
+        loss = (d ** 2).mean() - self.variance_focus * (d.mean() ** 2)
+        return  torch.sqrt(loss) * 10.0 # os papers nao falam sobre sqrt nem *10

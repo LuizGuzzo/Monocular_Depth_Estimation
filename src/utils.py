@@ -3,7 +3,7 @@ import matplotlib.cm
 import numpy as np
 from PIL import Image
 
-def DepthNorm(depth, maxDepth=1000.0): 
+def DepthNorm(depth, maxDepth=1000): #inverte?
     # return maxDepth / depth
     return (depth - depth.min())/(depth.max()-depth.min())
 
@@ -28,7 +28,7 @@ class AverageMeter(object):
 # apenas utilizam a mascara GT aparentemente pro calculo : https://github.com/aliyun/NeWCRFs/blob/a6b6ab0abc3766809380da80850f1553b05755a3/newcrfs/eval.py
 def compute_errors(gt, pred):
     thresh = np.maximum((gt / pred), (pred / gt))
-    d1 = np.mean(thresh < 1.25) # como tirar a media de um lista de booleanos em pytorch
+    d1 = np.mean(thresh < 1.25)
     d2 = np.mean(thresh < 1.25 ** 2)
     d3 = np.mean(thresh < 1.25 ** 3)
 
