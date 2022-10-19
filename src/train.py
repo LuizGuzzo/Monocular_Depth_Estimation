@@ -12,7 +12,7 @@ import math
 from matplotlib import pyplot as plt
 from model_mobileV3_Unet_interpolado import PTModel
 from loss import ssim
-from loss import Silog_loss_variance, SILogLoss
+from loss import Silog_loss_variance
 from data import getTrainingTestingData
 from utils import AverageMeter, DepthNorm, colorize
 
