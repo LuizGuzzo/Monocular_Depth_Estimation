@@ -1,3 +1,4 @@
+from cmath import nan
 import time
 import argparse
 import datetime
@@ -11,8 +12,7 @@ import math
 
 from matplotlib import pyplot as plt
 from model_mobileV3_Unet_interpolado import PTModel
-from loss import ssim
-from loss import Silog_loss_variance
+from loss import Silog_loss_variance, SSIM
 from data import getTrainingTestingData
 from utils import AverageMeter, DepthNorm, colorize
 
@@ -50,6 +50,9 @@ def main():
     # Creates a criterion that measures the mean absolute error (MAE) between each element in the input x and target y.
     l1_criterion = nn.L1Loss()
     SIlog = Silog_loss_variance()
+    ssim = SSIM()
+
+    MIN_DEPTH = 1e-3
 
 
     epoch_interation = 0
@@ -82,23 +85,27 @@ def main():
             # Prepare sample and target
             image = torch.autograd.Variable(sample_batched['image'].cuda())
             depth = torch.autograd.Variable(sample_batched['depth'].cuda(non_blocking=True))
-            # print("image.shape",image.shape) # [2,3,480,640] DE ONDE TA VINDO O 2 NO COMEÇO? 
-            # print("depth.shape",depth.shape) # [2,1,240,320]
             # Normalize depth
             depth_n = DepthNorm( depth )
 
-            # Predict
-            output = model(image)
+            prediction = model(image)
 
             # Compute the loss
-            l_depth = l1_criterion(output, depth_n) # criterion that measures the mean absolute error (MAE) between each element in the input x and target y
+            l_depth = l1_criterion(prediction, depth_n) # criterion that measures the mean absolute error (MAE) between each element in the input x and target y
             # print("l_depth.item():",l_depth.item())
-            l_ssim = ssim(output, depth_n, val_range = 1000.0 / 10.0)
-            l_ssim = torch.clamp((1 - l_ssim) * 0.5, 0, 1)
+            l_ssim = ssim(prediction, depth_n)
             # print("l_ssim.item():",l_ssim.item())
-            l_SIlog = SIlog(output, depth_n)          
+            l_SIlog = SIlog(prediction, depth_n)          
 
             loss = (1.0 * l_ssim) + (0.1 * l_depth) + (0.1 * l_SIlog)
+
+            # if loss.data.item() != loss.data.item():
+            #     import torchvision.transforms as vtransforms
+                
+            #     vtransforms.ToPILImage()(depth[0,:]).show(title="gt cuda")
+            #     vtransforms.ToPILImage()(depth_n[0,:]).show(title="gt cuda")
+            #     vtransforms.ToPILImage()(prediction[0,:]).show(title="pred gt cuda")
+            #     print("error")
 
             # Update step
             optimizer.zero_grad() # The gradients are then set to zero before each update
@@ -167,13 +174,13 @@ def LogProgress(model, writer, test_loader, epoch):
     if epoch == 0: writer.add_image('Train.1.Image', image_grid , epoch)
     if epoch == 0: writer.add_image('Train.2.Depth', depth_colorized_grid, epoch)
     
-    output = DepthNorm( model(image) )
-    # print("output_shape:",output.shape) # torch.Size([7,1,240,320])
-    # print("output_data_shape:",output.data.shape) # torch.Size([7,1,240,320])
+    prediction = DepthNorm( model(image) )
+    # print("output_shape:",prediction.shape) # torch.Size([7,1,240,320])
+    # print("output_data_shape:",prediction.data.shape) # torch.Size([7,1,240,320])
     # registrando no log o mapa estimado e a diferença com o GT
 
-    output_colorized_grid = colorize(vutils.make_grid(output.data, nrow=6, normalize=False))
-    diff_colorized_grid = colorize(vutils.make_grid(torch.abs(output-depth).data, nrow=6, normalize=False))
+    output_colorized_grid = colorize(vutils.make_grid(prediction.data, nrow=6, normalize=False))
+    diff_colorized_grid = colorize(vutils.make_grid(torch.abs(prediction-depth).data, nrow=6, normalize=False))
     # print("res_output_colorized:", output_colorized_grid.shape) # (3, 486, 1934)
     # print("diff_colorized_grid:", diff_colorized_grid.shape) # (3, 486, 1934)
     writer.add_image('Train.3.Ours', output_colorized_grid, epoch)
@@ -184,7 +191,7 @@ def LogProgress(model, writer, test_loader, epoch):
 
     del image
     del depth
-    del output
+    del prediction
 
 if __name__ == '__main__':
     main()

@@ -58,8 +58,8 @@ def loadZipToMem(zip_file):
     #     nyu2_train = nyu2_train[:1000]
     #     nyu2_test = nyu2_test[:1000]
 
-    split = int(np.floor(.3*len(nyu2_train))) #30% do dataset
-    nyu2_train, nyu2_test = nyu2_train[split:], nyu2_train[:split] # split method
+    # split = int(np.floor(.3*len(nyu2_train))) #30% do dataset
+    # nyu2_train, nyu2_test = nyu2_train[split:], nyu2_train[:split] # split method
 
     # nyu2_train = nyu2_test = nyu2_train # wrong training method
 
@@ -150,7 +150,7 @@ class ToTensor(object):
 
         img = img.transpose(0, 1).transpose(0, 2).contiguous()
         if isinstance(img, torch.ByteTensor):
-            return img.float().div(255)
+            return img.float().div(255) # ja vem normalizado
         else:
             return img
 

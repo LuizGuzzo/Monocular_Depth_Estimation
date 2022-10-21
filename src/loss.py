@@ -14,44 +14,78 @@ def create_window(window_size, channel=1):
     return window
 
 #Structural similarity
-def ssim(img1, img2, val_range, window_size=11, window=None, size_average=True, full=False):
-    L = val_range
-    # luminance, contrast, structure
-    padd = 0
-    (_, channel, height, width) = img1.size()
-    if window is None:
-        real_size = min(window_size, height, width)
-        window = create_window(real_size, channel=channel).to(img1.device)
+# def ssim(img1, img2, val_range, window_size=11, window=None, size_average=True, full=False):
+#     L = val_range
+#     # luminance, contrast, structure
+#     padd = 0
+#     # acho q é melhor vc pegar esse loss daquele git q tem milhoes de losses, pra poder todos usarem a mask
+#     (_, channel, height, width) = img1.size()
+#     if window is None:
+#         real_size = min(window_size, height, width)
+#         window = create_window(real_size, channel=channel).to(img1.device)
 
-    mu1 = F.conv2d(img1, window, padding=padd, groups=channel)
-    mu2 = F.conv2d(img2, window, padding=padd, groups=channel)
+#     mu1 = F.conv2d(img1, window, padding=padd, groups=channel)
+#     mu2 = F.conv2d(img2, window, padding=padd, groups=channel)
 
-    mu1_sq = mu1.pow(2)
-    mu2_sq = mu2.pow(2)
-    mu1_mu2 = mu1 * mu2
+#     mu1_sq = mu1.pow(2)
+#     mu2_sq = mu2.pow(2)
+#     mu1_mu2 = mu1 * mu2
 
-    sigma1_sq = F.conv2d(img1 * img1, window, padding=padd, groups=channel) - mu1_sq
-    sigma2_sq = F.conv2d(img2 * img2, window, padding=padd, groups=channel) - mu2_sq
-    sigma12 = F.conv2d(img1 * img2, window, padding=padd, groups=channel) - mu1_mu2
+#     sigma1_sq = F.conv2d(img1 * img1, window, padding=padd, groups=channel) - mu1_sq
+#     sigma2_sq = F.conv2d(img2 * img2, window, padding=padd, groups=channel) - mu2_sq
+#     sigma12 = F.conv2d(img1 * img2, window, padding=padd, groups=channel) - mu1_mu2
 
-    C1 = (0.01 * L) ** 2
-    C2 = (0.03 * L) ** 2
+#     C1 = (0.01 * L) ** 2
+#     C2 = (0.03 * L) ** 2
 
-    v1 = 2.0 * sigma12 + C2
-    v2 = sigma1_sq + sigma2_sq + C2
-    cs = torch.mean(v1 / v2)  # contrast sensitivity
+#     v1 = 2.0 * sigma12 + C2
+#     v2 = sigma1_sq + sigma2_sq + C2
+#     cs = torch.mean(v1 / v2)  # contrast sensitivity
 
-    ssim_map = ((2 * mu1_mu2 + C1) * v1) / ((mu1_sq + mu2_sq + C1) * v2)
+#     ssim_map = ((2 * mu1_mu2 + C1) * v1) / ((mu1_sq + mu2_sq + C1) * v2)
 
-    if size_average:
-        ret = ssim_map.mean()
-    else:
-        ret = ssim_map.mean(1).mean(1).mean(1)
+#     if size_average:
+#         ret = ssim_map.mean()
+#     else:
+#         ret = ssim_map.mean(1).mean(1).mean(1)
 
-    if full:
-        return ret, cs
+#     if full:
+#         return ret, cs
 
-    return ret
+#     return ret
+
+class SSIM(nn.Module):
+    """Layer to compute the SSIM loss between a pair of images
+    """
+    # from monodepth2
+    def __init__(self):
+        super(SSIM, self).__init__()
+        self.mu_x_pool   = nn.AvgPool2d(3, 1)
+        self.mu_y_pool   = nn.AvgPool2d(3, 1)
+        self.sig_x_pool  = nn.AvgPool2d(3, 1)
+        self.sig_y_pool  = nn.AvgPool2d(3, 1)
+        self.sig_xy_pool = nn.AvgPool2d(3, 1)
+
+        self.refl = nn.ReflectionPad2d(1)
+
+        self.C1 = 0.01 ** 2
+        self.C2 = 0.03 ** 2
+
+    def forward(self, x, y):
+        x = self.refl(x)
+        y = self.refl(y)
+
+        mu_x = self.mu_x_pool(x)
+        mu_y = self.mu_y_pool(y)
+
+        sigma_x  = self.sig_x_pool(x ** 2) - mu_x ** 2
+        sigma_y  = self.sig_y_pool(y ** 2) - mu_y ** 2
+        sigma_xy = self.sig_xy_pool(x * y) - mu_x * mu_y
+
+        SSIM_n = (2 * mu_x * mu_y + self.C1) * (2 * sigma_xy + self.C2)
+        SSIM_d = (mu_x ** 2 + mu_y ** 2 + self.C1) * (sigma_x + sigma_y + self.C2)
+
+        return torch.clamp((1 - SSIM_n / SSIM_d) / 2, 0, 1).mean()
 
 # class SILogLoss(nn.Module): 
 #     def __init__(self,variance_focus=0.85):
@@ -85,9 +119,11 @@ class Silog_loss_variance(nn.Module): # https://github.com/SysCV/P3Depth/blob/ma
         self.variance_focus = variance_focus
 
     def forward(self, prediction, gt):
+        # extract the valid region from image
         mask = (gt > 1e-3).detach()
         prediction = torch.clamp(prediction, min=1e-6)
-        d = torch.log(prediction[mask]) - torch.log(gt[mask])
+        prediction, gt = prediction[mask], gt[mask]
+        d = torch.log(prediction) - torch.log(gt)
 
         loss = (d ** 2).mean() - self.variance_focus * (d.mean() ** 2)
         return  torch.sqrt(loss) * 10.0 # os papers nao falam sobre sqrt nem *10
