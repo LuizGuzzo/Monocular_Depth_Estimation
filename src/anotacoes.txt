@@ -1,11 +1,3 @@
-#requisitos para conseguir fazer a rede funcionar em uma maquina linux
-instalar o cuda
-pip3 install torch torchvision torchaudio
-pip install tensorboardx
-pip install matplotlib
-pip install pandas
-pip3 install -U scikit-learn
-
 # comandos para conectar no PC remotamente
 ssh  luizguzzo@172.19.113.14
 tmux attach-session -t "monocular" (fica de olho se vc n mudou o nome)
@@ -32,3 +24,23 @@ scp luizguzzo@172.19.113.14:~\repositorio\Monocular_Depth_Estimation\src\arq.zip
 
 #iniciar o log do tensorflow
 tensorboard --logdir=runs
+
+@#@# PROCESSOS A SEREM REALIZADOS AO INICIAR UMA NOVA MAQUINA @#@#
+
+#trocar a senha
+passwd luizguzzo
+
+#criar ambiente virtual
+
+#baixar o nvtop para verificar o uso da GPU
+
+#instalar dependencias na MV
+
+instalar o cuda
+pip3 install torch torchvision torchaudio
+pip install tensorboardx
+pip install matplotlib
+pip install pandas
+pip3 install -U scikit-learn
+
+#dar um git pull no projeto
