@@ -30,9 +30,33 @@ tensorboard --logdir=runs
 #trocar a senha
 passwd luizguzzo
 
+#habilita o bash mode
+bash
+
 #criar ambiente virtual
+sudo apt install python3-pip
+pip install virtualenv #necessario?
+sudo apt install python3.10-venv
+python3 -m venv pytorch
+
+#ativar venv
+source pytorch/bin/activate
 
 #baixar o nvtop para verificar o uso da GPU
+sudo apt install nvtop
+
+#instalar cuda https://linuxhint.com/install-cuda-ubuntu/
+sudo apt install build-essential
+sudo apt install nvidia-cuda-toolkit
+nvcc --version
+sudo apt install linux-headers-$(uname -r) -y
+sudo wget -O /etc/apt/preferences.d/cuda-repository-pin-600 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
+sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/7fa2af80.pub
+#error sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
+sudo apt update
+sudo apt full-upgrade #acho q n precisa
+sudo apt-get install cuda
+
 
 #instalar dependencias na MV
 

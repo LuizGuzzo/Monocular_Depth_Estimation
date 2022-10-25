@@ -95,7 +95,7 @@ def main():
             # print("l_ssim.item():",l_ssim.item())
             l_SIlog = SIlog(prediction, depth_n)          
 
-            loss = (1.0 * l_ssim) + (0.1 * l_depth) + (0.1 * l_SIlog)
+            loss = (1.0 * l_ssim) + (0.1 * l_depth) #+ (0.1 * l_SIlog)
 
             # if loss.data.item() != loss.data.item():
             #     import torchvision.transforms as vtransforms
