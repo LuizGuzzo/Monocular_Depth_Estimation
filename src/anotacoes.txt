@@ -37,6 +37,8 @@ bash
 sudo apt install python3-pip
 pip install virtualenv #necessario?
 sudo apt install python3.10-venv
+
+#tenta aqui se nao der faz os comandos anteriores
 python3 -m venv pytorch
 
 #ativar venv
@@ -45,22 +47,13 @@ source pytorch/bin/activate
 #baixar o nvtop para verificar o uso da GPU
 sudo apt install nvtop
 
-#instalar cuda https://linuxhint.com/install-cuda-ubuntu/
-sudo apt install build-essential
-sudo apt install nvidia-cuda-toolkit
-nvcc --version
-sudo apt install linux-headers-$(uname -r) -y
-sudo wget -O /etc/apt/preferences.d/cuda-repository-pin-600 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
-sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/7fa2af80.pub
-#error sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
-sudo apt update
-sudo apt full-upgrade #acho q n precisa
-sudo apt-get install cuda
+#instalar cuda
+nao sei fazer isso
 
+#testa se tem o cuda
+nvidia-smi
 
 #instalar dependencias na MV
-
-instalar o cuda
 pip3 install torch torchvision torchaudio
 pip install tensorboardx
 pip install matplotlib
@@ -68,3 +61,14 @@ pip install pandas
 pip3 install -U scikit-learn
 
 #dar um git pull no projeto
+sudo apt install git
+git clone https://github.com/LuizGuzzo/Monocular_Depth_Estimation.git
+
+#baixar o dataset
+pip install gdown
+cd repositorios/Monocular_Depth_Estimation/src/
+gdown https://drive.google.com/uc?id=1fdFu5NGXe4rTLYKD5wOqk9dl-eJOefXo
+mv nyu_data.zip CSVdata.zip
+
+#testa se ta criando antes
+mkdir checkpoints

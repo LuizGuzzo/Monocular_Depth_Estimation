@@ -150,7 +150,7 @@ class ToTensor(object):
 
         img = img.transpose(0, 1).transpose(0, 2).contiguous()
         if isinstance(img, torch.ByteTensor):
-            return img.float().div(255) # ja vem normalizado
+            return img.float().div(255)
         else:
             return img
 

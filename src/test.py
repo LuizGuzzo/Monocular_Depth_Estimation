@@ -123,26 +123,26 @@ def main():
         measures = compute_errors(gt_depth[mask], pred_depth[mask])
         # measures = compute_errors(gt_depth, pred_depth) # para remover a mascara, precisa comentar as alteraçoes do pred_depth tbm
 
-        # if True: # enable view mode
-        #     from PIL import Image
-        #     colorizedGT = colorizeCPU(gt_depth[0,:])
-        #     colorizedPred = colorizeCPU(pred_depth[0,:])
+        if True: # enable view mode
+            from PIL import Image
+            colorizedGT = colorizeCPU(gt_depth[0,:])
+            colorizedPred = colorizeCPU(pred_depth[0,:])
 
-        #     vtransforms.ToPILImage()(image[0,:]).show(title="RGB")
-        #     vtransforms.ToPILImage()(depth[0,:]).show(title="depth")
+            vtransforms.ToPILImage()(image[0,:]).show(title="RGB")
+            vtransforms.ToPILImage()(depth[0,:]).show(title="depth")
 
-        #     # vtransforms.ToPILImage()(gt_depth[0,:]).show(title="gt") #printa tudo escuro (é o gray)       
-        #     # vtransforms.ToPILImage()(pred_depth[0,:]).show(title="pred gt")
+            # vtransforms.ToPILImage()(gt_depth[0,:]).show(title="gt") #printa tudo escuro (é o gray)       
+            # vtransforms.ToPILImage()(pred_depth[0,:]).show(title="pred gt")
 
-        #     vtransforms.ToPILImage()(gt_depth_cuda[0,:]).show(title="gt cuda")
-        #     vtransforms.ToPILImage()(pred_depth_cuda[0,:]).show(title="pred gt cuda")
+            vtransforms.ToPILImage()(gt_depth_cuda[0,:]).show(title="gt cuda")
+            vtransforms.ToPILImage()(pred_depth_cuda[0,:]).show(title="pred gt cuda")
 
-        #     colorizedGT.show(title="gt colorized")
-        #     colorizedPred.show(title="pred gt colorized")
+            colorizedGT.show(title="gt colorized")
+            colorizedPred.show(title="pred gt colorized")
 
-        #     # Image.fromarray(mask[0,:,:]).show(title="mask") #printa a mascara
-        #     Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedGT,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation gt")
-        #     Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedPred,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation pred gt")
+            # Image.fromarray(mask[0,:,:]).show(title="mask") #printa a mascara
+            Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedGT,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation gt")
+            Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedPred,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation pred gt")
     
 
         # measures = compute_errors(gt_depth, pred_depth)

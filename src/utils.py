@@ -3,8 +3,7 @@ import matplotlib.cm
 import numpy as np
 from PIL import Image
 
-def DepthNorm(depth, maxDepth=1): #inverte?
-    # return maxDepth / depth
+def DepthNorm(depth):
     return (depth - depth.min())/(depth.max()-depth.min())
 
 class AverageMeter(object):
