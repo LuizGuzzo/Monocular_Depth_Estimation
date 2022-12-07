@@ -3,6 +3,9 @@ import torch.nn as nn
 from torchvision import models
 import torch.nn.functional as F
 from newcrf_layers import NewCRF
+import numpy as np
+
+import cv2
 
 class ConvBlock(nn.Sequential):
     def __init__(self, in_channels, out_channels):
@@ -91,11 +94,11 @@ class Decoder(nn.Module):
         win = 7
 
         crf_dims = [128, 256, 512, 1024]  # canais resultantes da CRF
+        # crf_dims = [32, 64, 128, 256]  # canais resultantes da CRF
         v_dims = [64, 128, 256, 512]      # canais da imagem recebida
-        # in_channels = [96, 192, 384, 768] # canais da feature de entrada
         in_channels = [16, 24, 48, 576] # canais da feature de entrada
 
-        self.bridge = nn.Conv2d(576, v_dims[3], kernel_size=1, stride=1) # bridge
+        self.conv0 = nn.Conv2d(576, v_dims[3], kernel_size=1, stride=1) # bridge
         
                         #            feature entra ,            resultado ,              7 , result anterior,  num_heads )
         self.crf3 = NewCRF(input_dim=in_channels[3], embed_dim=crf_dims[3], window_size=win, v_dim=v_dims[3], num_heads=32)
@@ -103,78 +106,100 @@ class Decoder(nn.Module):
         self.crf1 = NewCRF(input_dim=in_channels[1], embed_dim=crf_dims[1], window_size=win, v_dim=v_dims[1], num_heads=8)
         self.crf0 = NewCRF(input_dim=in_channels[0], embed_dim=crf_dims[0], window_size=win, v_dim=v_dims[0], num_heads=4)
 
-        self.conv1 = nn.Conv2d(crf_dims[0], 1, 3, padding=1)
+        self.conv1 = nn.Conv2d(32, 1, 3, padding=1)
         self.sigmoid = nn.Sigmoid()
 
 
-    def forward(self, features):
+    def forward(self, feats):
 
-        # if True: # leitura de tamanho das features
-        #     for block in range(len(features)):
-        #         print("feature[{}]: {}".format(block,features[block].size()))
+        # if True: # leitura de tamanho das feats
+        #     for block in range(len(feats)):
+        #         print("feature[{}]: {}".format(block,feats[block].size()))
 
-        # print("len Features:",len(features))
-        f_block0,       f_block1,    f_block2,     f_block3,     f_block4,    f_block5 = \
-        features[2], features[3], features[5], features[8], features[10],features[13]
-        #        16           24           40            48           96          576
-        # [120,160]      [60,80]      [30,40]       [30,40]       [15,20]      [15,20]
-       
+        # print("len feats:",len(feats))
+  
+        # MobileV3 Small
+        # feats[0]: [3, 480, 640]
+        # feats[1]: [16, 240, 320]
+        # feats[2]: [16, 120, 160]
+        # feats[3]: [24, 60, 80]
+        # feats[4]: [24, 60, 80]
+        # feats[5]: [40, 30, 40]
+        # feats[6]: [40, 30, 40]
+        # feats[7]: [40, 30, 40]
+        # feats[8]: [48, 30, 40]
+        # feats[9]: [48, 30, 40]
+        # feats[10]: [96, 15, 20]
+        # feats[11]: [96, 15, 20]
+        # feats[12]: [96, 15, 20]
+        # feats[13]: [576, 15, 20]
 
 
-        x_d0 = self.bridge(f_block5) # 576 canais
-        # x_d1 = self.up0(x_d0, f_block5) # (576 x + 567 block > 96 saida) 576 + 576 > 96
-        # x_d2 = self.up1(x_d1, f_block4) # 96 + 96 > 48
-        # x_d3 = self.up2(x_d2, f_block3) # 48 + 48 > 40
-        # x_d4 = self.up3(x_d3, f_block2) # 40 + 40 > 24
-        # x_d5 = self.up4(x_d4, f_block1) # 24 + 24 > 16
-        # x_d6 = self.up5(x_d5, f_block0) # 16 + 16 > 8
-        # x_d7 = self.conv3(x_d6) # 8 > 1
-
+        bridge = self.conv0(feats[13]) # 576 canais
         
-        e3 = self.crf3(f_block5, x_d0) # [576, 15, 20] | [512, 15, 20]
+        e3 = self.crf3(feats[13], bridge) # [576, 15, 20] | [512, 15, 20]
         e3p = nn.PixelShuffle(2)(e3) # e3 [1024, 15,20 ]
-        e2 = self.crf2(f_block3, e3p) # [48, 30, 40] | [256, 30, 40]
+        e2 = self.crf2(feats[8], e3p) # [48, 30, 40] | [256, 30, 40]
         e2p = nn.PixelShuffle(2)(e2) # e2 [512, 30, 40]
-        e1 = self.crf1(f_block1, e2p) # [24, 60, 80] | [128, 60, 80]
+        e1 = self.crf1(feats[3], e2p) # [24, 60, 80] | [128, 60, 80]
         e1p = nn.PixelShuffle(2)(e1) # e1 [256, 60, 80]
-        e0 = self.crf0(f_block0, e1p) # [16, 120, 160] |[64, 120, 160]
-                                      # e0 [128, 120, 160]
-        depth1 = self.sigmoid(self.conv1(e0)) # [1,120,160]
-        depth2 = upsample(depth1, scale_factor=2) # [1,480,640]
+        e0 = self.crf0(feats[2], e1p) # [16, 120, 160] |[64, 120, 160]
+                                     # e0 [128, 120, 160]
+        e0p = nn.PixelShuffle(2)(e0) # e0p [32,240,320]
+        depth1 = self.sigmoid(self.conv1(e0p)) # [1,240,320]
+        depth2 = upsample(depth1, scale_factor=1) # [1,240,320] >> tem que ser [1,240,320]
 
-        # e3 = self.crf3(feats[3], ppm_out) # feats[3] [768,15,20] | ppm_out [512,15,20]
-        # e3p = nn.PixelShuffle(2)(e3) # e3 [1024,15,20]
-        # e2 = self.crf2(feats[2], e3p) # feats[2] [384,30,40] | e3p [256,30,40]
-        # e2p = nn.PixelShuffle(2)(e2) # e2 [512,30,40]
-        # e1 = self.crf1(feats[1], e2p) # feats[1] [192,60,80] | e2p [128,60,80]
-        # e1p = nn.PixelShuffle(2)(e1) # e1 [256,60,80]
-        # e0 = self.crf0(feats[0], e1p) # feats[0] [96,120,160] |  e1p [64,120,160]
-        #                               # e0 [128,120,160]
-        # depth = self.sigmoid(self.conv1(e0))
-        # depth = upsample(depth, scale_factor=4)
-        #                               # depth [1,480,640]
 
         # import torchvision.transforms as vtransforms
-        # vtransforms.ToPILImage()(feats[3][0,0,:]).show()
-        # vtransforms.ToPILImage()(ppm_out[0,0,:]).show()        
-        # vtransforms.ToPILImage()(e3[0,0,:]).show()
+        # imgFeatures = []
+        # imgshuffled = []
+        # imgCRFed = []
 
-        # vtransforms.ToPILImage()(feats[2][0,0,:]).show()
-        # vtransforms.ToPILImage()(e3p[0,0,:]).show()
-        # vtransforms.ToPILImage()(e2[0,0,:]).show()
+        # imgFeatures.append(np.array(vtransforms.ToPILImage()(feats[3][0,0,:])))
+        # imgshuffled.append(np.array(vtransforms.ToPILImage()(bridge[0,0,:])))
+        # imgCRFed.append(np.array(vtransforms.ToPILImage()(e3[0,0,:])))
 
-        # vtransforms.ToPILImage()(feats[1][0,0,:]).show()
-        # vtransforms.ToPILImage()(e2p[0,0,:]).show()
-        # vtransforms.ToPILImage()(e1[0,0,:]).show()
+        # imgFeatures.append(np.array(vtransforms.ToPILImage()(feats[2][0,0,:])))
+        # imgshuffled.append(np.array(vtransforms.ToPILImage()(e3p[0,0,:])))
+        # imgCRFed.append(np.array(vtransforms.ToPILImage()(e2[0,0,:])))
 
-        # vtransforms.ToPILImage()(feats[0][0,0,:]).show()
-        # vtransforms.ToPILImage()(e1p[0,0,:]).show()
-        # vtransforms.ToPILImage()(e0[0,0,:]).show()
+        # imgFeatures.append(np.array(vtransforms.ToPILImage()(feats[1][0,0,:])))
+        # imgshuffled.append(np.array(vtransforms.ToPILImage()(e2p[0,0,:])))
+        # imgCRFed.append(np.array(vtransforms.ToPILImage()(e1[0,0,:])))
 
-        # vtransforms.ToPILImage()(depth[0,:]).show()
+        # imgFeatures.append(np.array(vtransforms.ToPILImage()(feats[0][0,0,:])))
+        # imgshuffled.append(np.array(vtransforms.ToPILImage()(e1p[0,0,:])))
+        # imgCRFed.append(np.array(vtransforms.ToPILImage()(e0[0,0,:])))
+
+        # # final = []
+        # imgshuffled.append(np.array(vtransforms.ToPILImage()(e0p[0,0,:])))
+        # # final.append(np.array(vtransforms.ToPILImage()(depth1[0,:])))
+        # imgCRFed.append(np.array(vtransforms.ToPILImage()(depth2[0,:])))
+
+        # cv2.imshow('imgFeatures.jpg', hconcat_resize(imgFeatures))
+        # cv2.imshow('imgshuffled.jpg', hconcat_resize(imgshuffled))
+        # cv2.imshow('imgCRFed.jpg', hconcat_resize(imgCRFed))
+        # # cv2.imshow('final.jpg', hconcat_resize(final))
         
         return depth2
 
+
+def hconcat_resize(img_list, 
+                   interpolation 
+                   = cv2.INTER_CUBIC):
+      # take minimum hights
+    h_min = max(img.shape[0] 
+                for img in img_list)
+      
+    # image resizing 
+    im_list_resize = [cv2.resize(img,
+                       (int(img.shape[1] * h_min / img.shape[0]),
+                        h_min), interpolation
+                                 = interpolation) 
+                      for img in img_list]
+      
+    # return final image
+    return cv2.hconcat(im_list_resize)
 
 class Encoder(nn.Module):
     def __init__(self):

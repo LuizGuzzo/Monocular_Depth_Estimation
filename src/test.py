@@ -12,7 +12,7 @@ import numpy as np
 import torchvision.transforms as vtransforms
 
 from matplotlib import pyplot as plt
-from model_mobileV3_Unet_interpolado_small import PTModel
+from model_mobileV3_Unet_interpolado_small_newCRF import PTModel
 # from loss import SSIM
 from data import getTestingData, getTrainingTestingData
 from utils import AverageMeter, DepthNorm, colorizeCPU, compute_errors
@@ -27,7 +27,7 @@ from utils import AverageMeter, DepthNorm, colorizeCPU, compute_errors
 def main():
     # Arguments
     parser = argparse.ArgumentParser(description='Monocular Depth Estimation via Transfer Learning')
-    parser.add_argument('--bs', '--batch-size', default=32, type=int, help='batch size') # 16
+    parser.add_argument('--bs', '--batch-size', default=4, type=int, help='batch size') # 16
     parser.add_argument('--pt', '--path', default="./checkpoints/global_checkpoint.pth", type=str, help='path to the model') # mob3L-ep3-loss0.040_10kDS.pth
     
     parser.add_argument('--min_depth_eval',            type=float, help='minimum depth for evaluation', default=1e-3) # 1e-3
