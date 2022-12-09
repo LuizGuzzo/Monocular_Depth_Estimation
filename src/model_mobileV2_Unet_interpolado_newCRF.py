@@ -93,12 +93,13 @@ class Decoder(nn.Module):
 
         win = 7
 
-        crf_dims = [128, 256, 512, 1024]  # canais resultantes da CRF
+        crf_dims = [128, 256, 512, 1024, 1280]  # canais resultantes
         # crf_dims = [32, 64, 128, 256]  # canais resultantes da CRF
         v_dims = [64, 128, 256, 512]      # canais da imagem recebida
-        in_channels = [16, 24, 48, 576] # canais da feature de entrada
-
-        self.conv0 = nn.Conv2d(576, v_dims[3], kernel_size=1, stride=1) # bridge
+        # in_channels = [16, 24, 48, 576] # canais da feature de entrada
+        in_channels = [24,32,96,320] # canais da feature de entrada
+        # 1280 128
+        self.conv0 = nn.Conv2d(crf_dims[4], v_dims[3], kernel_size=1, stride=1) # bridge
         
                         #            feature entra ,            resultado ,              7 , result anterior,  num_heads )
         self.crf3 = NewCRF(input_dim=in_channels[3], embed_dim=crf_dims[3], window_size=win, v_dim=v_dims[3], num_heads=32)
@@ -106,7 +107,7 @@ class Decoder(nn.Module):
         self.crf1 = NewCRF(input_dim=in_channels[1], embed_dim=crf_dims[1], window_size=win, v_dim=v_dims[1], num_heads=8)
         self.crf0 = NewCRF(input_dim=in_channels[0], embed_dim=crf_dims[0], window_size=win, v_dim=v_dims[0], num_heads=4)
 
-        self.conv1 = nn.Conv2d(32, 1, 3, padding=1)
+        self.conv1 = nn.Conv2d(crf_dims[0], 1, 3, padding=1)
         self.sigmoid = nn.Sigmoid()
 
 
@@ -118,36 +119,40 @@ class Decoder(nn.Module):
 
         # print("len feats:",len(feats))
   
-        # MobileV3 Small
-        # feats[0]: [3, 480, 640]
-        # feats[1]: [16, 240, 320]
-        # feats[2]: [16, 120, 160]
-        # feats[3]: [24, 60, 80]
-        # feats[4]: [24, 60, 80]
-        # feats[5]: [40, 30, 40]
-        # feats[6]: [40, 30, 40]
-        # feats[7]: [40, 30, 40]
-        # feats[8]: [48, 30, 40]
-        # feats[9]: [48, 30, 40]
-        # feats[10]: [96, 15, 20]
-        # feats[11]: [96, 15, 20]
-        # feats[12]: [96, 15, 20]
-        # feats[13]: [576, 15, 20]
+    # feature[0]: torch.Size([4, 3, 480, 640])
+    # feature[1]: torch.Size([4, 32, 240, 320])
+    # feature[2]: torch.Size([4, 16, 240, 320])
+    # feature[3]: torch.Size([4, 24, 120, 160])
+    # feature[4]: torch.Size([4, 24, 120, 160])
+    # feature[5]: torch.Size([4, 32, 60, 80])
+    # feature[6]: torch.Size([4, 32, 60, 80])
+    # feature[7]: torch.Size([4, 32, 60, 80])
+    # feature[8]: torch.Size([4, 64, 30, 40])
+    # feature[9]: torch.Size([4, 64, 30, 40])
+    # feature[10]: torch.Size([4, 64, 30, 40])
+    # feature[11]: torch.Size([4, 64, 30, 40])
+    # feature[12]: torch.Size([4, 96, 30, 40])
+    # feature[13]: torch.Size([4, 96, 30, 40])
+    # feature[14]: torch.Size([4, 96, 30, 40])
+    # feature[15]: torch.Size([4, 160, 15, 20])
+    # feature[16]: torch.Size([4, 160, 15, 20])
+    # feature[17]: torch.Size([4, 160, 15, 20])
+    # feature[18]: torch.Size([4, 320, 15, 20])
+    # feature[19]: torch.Size([4, 1280, 15, 20])
 
 
-        bridge = self.conv0(feats[13]) # 576 canais
+        bridge = self.conv0(feats[19]) # 576 canais
         
-        e3 = self.crf3(feats[13], bridge) # [576, 15, 20] | [512, 15, 20]
+        e3 = self.crf3(feats[18], bridge) # [320, 15, 20] | [1280, 15, 20]
         e3p = nn.PixelShuffle(2)(e3) # e3 [1024, 15,20 ]
-        e2 = self.crf2(feats[8], e3p) # [48, 30, 40] | [256, 30, 40]
+        e2 = self.crf2(feats[14], e3p) # [96, 30, 40] | [256, 30, 40]
         e2p = nn.PixelShuffle(2)(e2) # e2 [512, 30, 40]
-        e1 = self.crf1(feats[3], e2p) # [24, 60, 80] | [128, 60, 80]
+        e1 = self.crf1(feats[7], e2p) # [32, 60, 80] | [128, 60, 80]
         e1p = nn.PixelShuffle(2)(e1) # e1 [256, 60, 80]
-        e0 = self.crf0(feats[2], e1p) # [16, 120, 160] |[64, 120, 160]
+        e0 = self.crf0(feats[4], e1p) # [24, 120, 160] |[64, 120, 160]
                                      # e0 [128, 120, 160]
-        e0p = nn.PixelShuffle(2)(e0) # e0p [32,240,320]
-        depth1 = self.sigmoid(self.conv1(e0p)) # [1,240,320]
-        depth2 = upsample(depth1, scale_factor=1) # [1,240,320] >> tem que ser [1,240,320]
+        depth1 = self.sigmoid(self.conv1(e0)) # [1,240,320]
+        depth2 = upsample(depth1, scale_factor=2) # [1,240,320] >> tem que ser [1,240,320]
 
 
         # import torchvision.transforms as vtransforms
@@ -172,7 +177,7 @@ class Decoder(nn.Module):
         # imgCRFed.append(np.array(vtransforms.ToPILImage()(e0[0,0,:])))
 
         # # final = []
-        # imgshuffled.append(np.array(vtransforms.ToPILImage()(e0p[0,0,:])))
+        # # imgshuffled.append(np.array(vtransforms.ToPILImage()(e0p[0,0,:])))
         # # final.append(np.array(vtransforms.ToPILImage()(depth1[0,:])))
         # imgCRFed.append(np.array(vtransforms.ToPILImage()(depth2[0,:])))
 
@@ -188,9 +193,9 @@ class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
         import torchvision.models as models
-        backbone_nn = models.mobilenet_v3_small( pretrained=True ) 
+        backbone_nn = models.mobilenet_v2( pretrained=True ) 
         
-        print("NOT freezing backbone layers - MobileNetV3_Small")
+        print("NOT freezing backbone layers - MobileNetV2")
         for param in backbone_nn.parameters():
             param.requires_grad = True
 

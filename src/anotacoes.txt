@@ -1,6 +1,7 @@
 # comandos para conectar no PC remotamente
 ssh  luizguzzo@172.19.113.14
 tmux attach-session -t "monocular" (fica de olho se vc n mudou o nome)
+source ~/pytorch/bin/activate (entrar na env)
 
 #site das Maquinas do IFES
 https://fboldt.github.io/labfbro.html

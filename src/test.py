@@ -15,8 +15,9 @@ from matplotlib import pyplot as plt
 from model_mobileV3_Unet_interpolado_small_newCRF import PTModel
 # from loss import SSIM
 from data import getTestingData, getTrainingTestingData
-from utils import AverageMeter, DepthNorm, colorizeCPU, compute_errors
+from utils import AverageMeter, DepthNorm, colorizeCPU, compute_errors, hconcat_resize
 
+import cv2
 
 # TODO:
 #  > Fazer um avaliador da rede 
@@ -27,7 +28,7 @@ from utils import AverageMeter, DepthNorm, colorizeCPU, compute_errors
 def main():
     # Arguments
     parser = argparse.ArgumentParser(description='Monocular Depth Estimation via Transfer Learning')
-    parser.add_argument('--bs', '--batch-size', default=4, type=int, help='batch size') # 16
+    parser.add_argument('--bs', '--batch-size', default=6, type=int, help='batch size') # 16
     parser.add_argument('--pt', '--path', default="./checkpoints/global_checkpoint.pth", type=str, help='path to the model') # mob3L-ep3-loss0.040_10kDS.pth
     
     parser.add_argument('--min_depth_eval',            type=float, help='minimum depth for evaluation', default=1e-3) # 1e-3
@@ -123,26 +124,47 @@ def main():
         measures = compute_errors(gt_depth[mask], pred_depth[mask])
         # measures = compute_errors(gt_depth, pred_depth) # para remover a mascara, precisa comentar as alteraçoes do pred_depth tbm
 
-        if True: # enable view mode
-            from PIL import Image
-            colorizedGT = colorizeCPU(gt_depth[0,:])
-            colorizedPred = colorizeCPU(pred_depth[0,:])
+        # if True: # enable view mode
+        #     from PIL import Image
+        #     # matrix = []
 
-            vtransforms.ToPILImage()(image[0,:]).show(title="RGB")
-            vtransforms.ToPILImage()(depth[0,:]).show(title="depth")
+        #     colorizedGT = colorizeCPU(gt_depth[0,:])
+        #     colorizedPred = colorizeCPU(pred_depth[0,:])
 
-            # vtransforms.ToPILImage()(gt_depth[0,:]).show(title="gt") #printa tudo escuro (é o gray)       
-            # vtransforms.ToPILImage()(pred_depth[0,:]).show(title="pred gt")
+        #     vtransforms.ToPILImage()(image[0,:]).show(title="RGB")
+        #     vtransforms.ToPILImage()(depth[0,:]).show(title="depth")
 
-            vtransforms.ToPILImage()(gt_depth_cuda[0,:]).show(title="gt cuda")
-            vtransforms.ToPILImage()(pred_depth_cuda[0,:]).show(title="pred gt cuda")
+        #     vtransforms.ToPILImage()(gt_depth_cuda[0,:]).show(title="gt cuda")
+        #     vtransforms.ToPILImage()(pred_depth_cuda[0,:]).show(title="pred gt cuda")
 
-            colorizedGT.show(title="gt colorized")
-            colorizedPred.show(title="pred gt colorized")
+        #     colorizedGT.show(title="gt colorized")
+        #     colorizedPred.show(title="pred gt colorized")
 
-            # Image.fromarray(mask[0,:,:]).show(title="mask") #printa a mascara
-            Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedGT,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation gt")
-            Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedPred,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation pred gt")
+        #     # Image.fromarray(mask[0,:,:]).show(title="mask") #printa a mascara
+        #     Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedGT,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation gt")
+        #     Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedPred,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation pred gt")
+
+        #     # matrix.append(np.array(vtransforms.ToPILImage()(image[0,:])))
+        #     # matrix.append(np.array(vtransforms.ToPILImage()(depth[0,:])))
+
+        #     # # vtransforms.ToPILImage()(gt_depth[0,:]) 
+        #     # # vtransforms.ToPILImage()(pred_depth[0,:]))
+
+        #     # matrix.append(np.array(vtransforms.ToPILImage()(gt_depth_cuda[0,:])))
+        #     # matrix.append(np.array(vtransforms.ToPILImage()(pred_depth_cuda[0,:])))
+
+        #     # matrix.append(np.array(colorizedGT))
+        #     # matrix.append(np.array(colorizedPred))
+
+        #     # # Image.fromarray(mask[0,:,:])a
+        #     # composto1 = Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedGT,Image.fromarray(np.invert(mask[0,:,:])))
+        #     # composto2 = Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedPred,Image.fromarray(np.invert(mask[0,:,:])))
+        #     # matrix.append(np.array(composto1))
+        #     # matrix.append(np.array(composto2))
+
+        #     # cv2.imshow("matrix",hconcat_resize(matrix))
+
+
     
 
         # measures = compute_errors(gt_depth, pred_depth)

@@ -2,6 +2,7 @@ import matplotlib
 import matplotlib.cm
 import numpy as np
 from PIL import Image
+import cv2
 
 def DepthNorm(depth):
     return (depth - depth.min())/(depth.max()-depth.min())
@@ -22,6 +23,22 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
+def hconcat_resize(img_list, 
+                   interpolation 
+                   = cv2.INTER_CUBIC):
+      # take minimum hights
+    h_min = max(img.shape[0] 
+                for img in img_list)
+      
+    # image resizing 
+    im_list_resize = [cv2.resize(img,
+                       (int(img.shape[1] * h_min / img.shape[0]),
+                        h_min), interpolation
+                                 = interpolation) 
+                      for img in img_list]
+      
+    # return final image
+    return cv2.hconcat(im_list_resize)
 
 # https://github.com/aliyun/NeWCRFs/blob/a6b6ab0abc3766809380da80850f1553b05755a3/newcrfs/utils.py
 # apenas utilizam a mascara GT aparentemente pro calculo : https://github.com/aliyun/NeWCRFs/blob/a6b6ab0abc3766809380da80850f1553b05755a3/newcrfs/eval.py
