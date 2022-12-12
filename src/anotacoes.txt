@@ -21,6 +21,11 @@ tmux attach-session -t [name] (se relogar a secao)
 #usa esse codigo no cmd do meu PC nao do IFES
 scp luizguzzo@172.19.113.14:~\repositorio\Monocular_Depth_Estimation\src\arq.zip C:\Users\luizg\Documents\repositorios\Dissertacao_MDE
 
+
+#criar uma venv em python
+python -m venv [nome]
+
+
 [oque voce quer no PC remoto] [aonde voce quer no seu pc]
 
 #iniciar o log do tensorflow

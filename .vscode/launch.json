@@ -13,7 +13,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "python": "C:\\Users\\luizg\\anaconda3\\envs\\pytorch\\python.exe",
+            "python": "C:\\Users\\luizg\\anaconda3\\envs\\newcrfs\\python.exe",
             "cwd": "C:\\Users\\luizg\\Documents\\repositorios\\Dissertacao_MDE\\src"
         }
     ]

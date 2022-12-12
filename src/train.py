@@ -11,7 +11,7 @@ from tensorboardX import SummaryWriter
 import math
 
 from matplotlib import pyplot as plt
-from model_mobileV2_Unet_interpolado_newCRF import PTModel
+from model_mobileV3_large_newCRF import PTModel
 from loss import Silog_loss_variance, SSIM
 from data import getTrainingTestingData
 from utils import AverageMeter, DepthNorm, colorize

@@ -12,7 +12,7 @@ import numpy as np
 import torchvision.transforms as vtransforms
 
 from matplotlib import pyplot as plt
-from model_mobileV3_Unet_interpolado_small_newCRF import PTModel
+from model_mobileV2_Unet_interpolado_newCRF import PTModel
 # from loss import SSIM
 from data import getTestingData, getTrainingTestingData
 from utils import AverageMeter, DepthNorm, colorizeCPU, compute_errors, hconcat_resize

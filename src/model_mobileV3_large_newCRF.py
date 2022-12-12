@@ -34,25 +34,6 @@ def crop_img(source, target): # img menor , img maior (no upsampling)
             ]
     return cropped_target
 
-
-# processar 1280 > 1280
-
-# upConv 1280 > 960
-# processar 960 + 960 > 960
-
-# upConv 960 > 160
-# processar 160 + 160 > 160
-
-# upConv 160 > 112
-
-# conv_block (entrada, praXcanais)
-#   processa a entrada convertendo para Xcanais #Conv2D
-
-# decoder_block(entrada, skip_entrada, praXcanais)
-#   aumenta a resolucao reduzindo os canais para Xcanais #Conv2DTranspose
-#   concatena com a skip
-#   vai para conv_block
-
 class Up(nn.Module):
     # upscale e convBlock
 
@@ -79,34 +60,24 @@ class Decoder(nn.Module):
     def __init__(self):
         super(Decoder, self).__init__()
 
-        # 16,24,40,80,112,160,960,1280
-        # self.bridge = bridge(in_channels=960, out_channels=960) 
-        # self.bridge = nn.Conv2d(576, 576, kernel_size=1, stride=1) # bridge
-        # self.up0 = Up(in_channels=576, out_channels=96) # 15x20 > 15x20
-        # self.up1 = Up(in_channels=96, out_channels=48) # 15x20 > 30x40
-        # self.up2 = Up(in_channels=48, out_channels=40) # 30x40 > 30x40
-        # self.up3 = Up(in_channels=40, out_channels=24) # 30x40 > 60x80
-        # self.up4 = Up(in_channels=24, out_channels=16) # 60x80 > 240x320
-        # self.up5 = Up(in_channels=16, out_channels=8) # 240x320 > ??? 480x640?
-
-        # self.conv3 = nn.Conv2d(8, 1, kernel_size=3, stride=1, padding=1) # ??? 480x640? > 480x640
+        num_heads = [4, 8, 16, 32]
+        # in_channels = [128, 256, 512, 1024]
 
         win = 7
 
         crf_dims = [128, 256, 512, 1024]  # canais resultantes da CRF
-        # crf_dims = [32, 64, 128, 256]  # canais resultantes da CRF
         v_dims = [64, 128, 256, 512]      # canais da imagem recebida
-        in_channels = [16, 24, 48, 576] # canais da feature de entrada
+        in_channels = [24,40,112,160,960] # canais da feature de entrada - varia com o encoder
 
-        self.conv0 = nn.Conv2d(576, v_dims[3], kernel_size=1, stride=1) # bridge
+        self.conv0 = nn.Conv2d(in_channels[4], v_dims[3], kernel_size=1, stride=1) # bridge
         
                         #            feature entra ,            resultado ,              7 , result anterior,  num_heads )
-        self.crf3 = NewCRF(input_dim=in_channels[3], embed_dim=crf_dims[3], window_size=win, v_dim=v_dims[3], num_heads=32)
-        self.crf2 = NewCRF(input_dim=in_channels[2], embed_dim=crf_dims[2], window_size=win, v_dim=v_dims[2], num_heads=16)
-        self.crf1 = NewCRF(input_dim=in_channels[1], embed_dim=crf_dims[1], window_size=win, v_dim=v_dims[1], num_heads=8)
-        self.crf0 = NewCRF(input_dim=in_channels[0], embed_dim=crf_dims[0], window_size=win, v_dim=v_dims[0], num_heads=4)
+        self.crf3 = NewCRF(input_dim=in_channels[3], embed_dim=crf_dims[3], window_size=win, v_dim=v_dims[3], num_heads=num_heads[3])
+        self.crf2 = NewCRF(input_dim=in_channels[2], embed_dim=crf_dims[2], window_size=win, v_dim=v_dims[2], num_heads=num_heads[2])
+        self.crf1 = NewCRF(input_dim=in_channels[1], embed_dim=crf_dims[1], window_size=win, v_dim=v_dims[1], num_heads=num_heads[1])
+        self.crf0 = NewCRF(input_dim=in_channels[0], embed_dim=crf_dims[0], window_size=win, v_dim=v_dims[0], num_heads=num_heads[0])
 
-        self.conv1 = nn.Conv2d(32, 1, 3, padding=1)
+        self.conv1 = nn.Conv2d(crf_dims[0], 1, 3, padding=1)
         self.sigmoid = nn.Sigmoid()
 
 
@@ -118,36 +89,38 @@ class Decoder(nn.Module):
 
         # print("len feats:",len(feats))
   
-        # MobileV3 Small
-        # feats[0]: [3, 480, 640]
-        # feats[1]: [16, 240, 320]
-        # feats[2]: [16, 120, 160]
-        # feats[3]: [24, 60, 80]
-        # feats[4]: [24, 60, 80]
-        # feats[5]: [40, 30, 40]
-        # feats[6]: [40, 30, 40]
-        # feats[7]: [40, 30, 40]
-        # feats[8]: [48, 30, 40]
-        # feats[9]: [48, 30, 40]
-        # feats[10]: [96, 15, 20]
-        # feats[11]: [96, 15, 20]
-        # feats[12]: [96, 15, 20]
-        # feats[13]: [576, 15, 20]
+        # MobileV3 Large
+        # feature[0]: torch.Size([2, 3, 480, 640])
+        # feature[1]: torch.Size([2, 16, 240, 320])
+        # feature[2]: torch.Size([2, 16, 240, 320]) 
+        # feature[3]: torch.Size([2, 24, 120, 160])
+        # feature[4]: torch.Size([2, 24, 120, 160]) -
+        # feature[5]: torch.Size([2, 40, 60, 80])
+        # feature[6]: torch.Size([2, 40, 60, 80])
+        # feature[7]: torch.Size([2, 40, 60, 80]) -
+        # feature[8]: torch.Size([2, 80, 30, 40])
+        # feature[9]: torch.Size([2, 80, 30, 40])
+        # feature[10]: torch.Size([2, 80, 30, 40])
+        # feature[11]: torch.Size([2, 80, 30, 40])
+        # feature[12]: torch.Size([2, 112, 30, 40])
+        # feature[13]: torch.Size([2, 112, 30, 40]) -
+        # feature[14]: torch.Size([2, 160, 15, 20])
+        # feature[15]: torch.Size([2, 160, 15, 20])
+        # feature[16]: torch.Size([2, 160, 15, 20])
+        # feature[17]: torch.Size([2, 960, 15, 20]) -
 
-
-        bridge = self.conv0(feats[13]) # 576 canais
+        bridge = self.conv0(feats[17]) # 960 canais
         
-        e3 = self.crf3(feats[13], bridge) # [576, 15, 20] | [512, 15, 20]
+        e3 = self.crf3(feats[16], bridge) # [160, 15, 20] | [512, 15, 20]
         e3p = nn.PixelShuffle(2)(e3) # e3 [1024, 15,20 ]
-        e2 = self.crf2(feats[8], e3p) # [48, 30, 40] | [256, 30, 40]
+        e2 = self.crf2(feats[13], e3p) # [48, 30, 40] | [256, 30, 40]
         e2p = nn.PixelShuffle(2)(e2) # e2 [512, 30, 40]
-        e1 = self.crf1(feats[3], e2p) # [24, 60, 80] | [128, 60, 80]
+        e1 = self.crf1(feats[7], e2p) # [24, 60, 80] | [128, 60, 80]
         e1p = nn.PixelShuffle(2)(e1) # e1 [256, 60, 80]
-        e0 = self.crf0(feats[2], e1p) # [16, 120, 160] |[64, 120, 160]
+        e0 = self.crf0(feats[4], e1p) # [16, 120, 160] |[64, 120, 160]
                                      # e0 [128, 120, 160]
-        e0p = nn.PixelShuffle(2)(e0) # e0p [32,240,320]
-        depth1 = self.sigmoid(self.conv1(e0p)) # [1,240,320]
-        depth2 = upsample(depth1, scale_factor=1) # [1,240,320] >> tem que ser [1,240,320]
+        depth1 = self.sigmoid(self.conv1(e0)) # [1,240,320]
+        depth2 = upsample(depth1, scale_factor=4) # [1,240,320] >> tem que ser [1,240,320]
 
 
         # import torchvision.transforms as vtransforms
@@ -188,7 +161,7 @@ class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
         import torchvision.models as models
-        backbone_nn = models.mobilenet_v3_small( pretrained=True ) 
+        backbone_nn = models.mobilenet_v3_large( pretrained=True ) 
         
         print("NOT freezing backbone layers - MobileNetV3_Small")
         for param in backbone_nn.parameters():
