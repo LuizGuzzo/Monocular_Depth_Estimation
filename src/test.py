@@ -144,25 +144,25 @@ def main():
         #     Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedGT,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation gt")
         #     Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedPred,Image.fromarray(np.invert(mask[0,:,:]))).show(title="validation pred gt")
 
-        #     # matrix.append(np.array(vtransforms.ToPILImage()(image[0,:])))
-        #     # matrix.append(np.array(vtransforms.ToPILImage()(depth[0,:])))
+            # matrix.append(np.array(vtransforms.ToPILImage()(image[0,:])))
+            # matrix.append(np.array(vtransforms.ToPILImage()(depth[0,:])))
 
-        #     # # vtransforms.ToPILImage()(gt_depth[0,:]) 
-        #     # # vtransforms.ToPILImage()(pred_depth[0,:]))
+            # # vtransforms.ToPILImage()(gt_depth[0,:]) 
+            # # vtransforms.ToPILImage()(pred_depth[0,:]))
 
-        #     # matrix.append(np.array(vtransforms.ToPILImage()(gt_depth_cuda[0,:])))
-        #     # matrix.append(np.array(vtransforms.ToPILImage()(pred_depth_cuda[0,:])))
+            # matrix.append(np.array(vtransforms.ToPILImage()(gt_depth_cuda[0,:])))
+            # matrix.append(np.array(vtransforms.ToPILImage()(pred_depth_cuda[0,:])))
 
-        #     # matrix.append(np.array(colorizedGT))
-        #     # matrix.append(np.array(colorizedPred))
+            # matrix.append(np.array(colorizedGT))
+            # matrix.append(np.array(colorizedPred))
 
-        #     # # Image.fromarray(mask[0,:,:])a
-        #     # composto1 = Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedGT,Image.fromarray(np.invert(mask[0,:,:])))
-        #     # composto2 = Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedPred,Image.fromarray(np.invert(mask[0,:,:])))
-        #     # matrix.append(np.array(composto1))
-        #     # matrix.append(np.array(composto2))
+            # # Image.fromarray(mask[0,:,:])a
+            # composto1 = Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedGT,Image.fromarray(np.invert(mask[0,:,:])))
+            # composto2 = Image.composite(Image.fromarray(crop_mask[0,:,:]),colorizedPred,Image.fromarray(np.invert(mask[0,:,:])))
+            # matrix.append(np.array(composto1))
+            # matrix.append(np.array(composto2))
 
-        #     # cv2.imshow("matrix",hconcat_resize(matrix))
+            # cv2.imshow("matrix",hconcat_resize(matrix))
 
 
     

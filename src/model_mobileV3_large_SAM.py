@@ -164,9 +164,9 @@ class Encoder(nn.Module):
         import torchvision.models as models
         backbone_nn = models.mobilenet_v3_large( pretrained=True ) 
         
-        print("NOT freezing backbone layers - MobileNetV3_Small")
+        print("freezing backbone layers - MobileNetV3_large")
         for param in backbone_nn.parameters():
-            param.requires_grad = True
+            param.requires_grad = False
 
         # print(backbone_nn)
         # print("@@@ END BACKBONE @@@")

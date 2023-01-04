@@ -11,7 +11,7 @@ from tensorboardX import SummaryWriter
 import math
 
 from matplotlib import pyplot as plt
-from model_mobileV3_large_SAM import PTModel
+from GuideDepth.model.GuideDepth import GuideDepth
 from loss import Silog_loss_variance, SSIM
 from data import getTrainingTestingData
 from utils import AverageMeter, DepthNorm, colorize
@@ -31,7 +31,9 @@ def main():
     args = parser.parse_args()
     
     # Create model
-    model = PTModel().cuda()
+    model = GuideDepth(True).cuda()
+    # model.to(torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'))
+    # model = PTModel().cuda()
 
     print('Model created.')
 
